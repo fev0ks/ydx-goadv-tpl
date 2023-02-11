@@ -5,7 +5,7 @@ services:
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=ydx_metrics
+      - POSTGRES_DB=ydx_tpl
     ports:
       - '5432:5432'
     volumes: 

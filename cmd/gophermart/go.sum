@@ -1,0 +1,6 @@
+github.com/fev0ks/ydx-goadv-metrics v0.0.0-20230202081856-24a407ccc1a8 h1:sLAYQLB+Rcx/IaTcTB+Ywa6a5MlS53NHbc6zV0W78pc=
+github.com/fev0ks/ydx-goadv-metrics v0.0.0-20230202081856-24a407ccc1a8/go.mod h1:oO5IwLy1j9JLP4tYLlHNXEScuMBvcCsrM4/K0w/ll44=
+github.com/go-chi/chi/v5 v5.0.8 h1:lD+NLqFcAi1ovnVZpsnObHGW4xb4J8lNmoYVfECH1Y0=
+github.com/go-chi/chi/v5 v5.0.8/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
+github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
+github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
