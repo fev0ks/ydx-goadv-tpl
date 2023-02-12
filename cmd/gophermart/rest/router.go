@@ -18,28 +18,45 @@ func NewRouter() chi.Router {
 	return router
 }
 
-func HandleUserRequests(router chi.Router, userService handlers.UserHandler) {
-	router.Route("/api/user", func(r chi.Router) {
-		//router.Post("/register", userService.ReceptionMetricHandler())
-		//router.Post("/login", userService.ReceptionMetricHandler())
+func HandleUserRequests(
+	router chi.Router,
+	userHandler handlers.UserHandler,
+) {
+	//router.Post("/api/user/register/", userHandler.RegisterHandler())
+	router.Group(func(r chi.Router) {
+		r.Route("/api/user", func(r chi.Router) {
+			r.Post("/register/", userHandler.RegisterHandler())
+			r.Post("/login/", userHandler.LoginHandler())
+		})
 	})
 }
 
-func HandleOrderRequests(router chi.Router, orderHandler handlers.OrderHandler) {
-	router.Route("/api/user/orders", func(r chi.Router) {
-		//router.Post("/", userService.ReceptionMetricHandler())
-		//router.Get("/", userService.ReceptionMetricHandler())
+func HandleOrderRequests(router chi.Router,
+	authMiddleware middlewares.SessionTokenValidator,
+	orderHandler handlers.OrderHandler,
+) {
+	router.Group(func(r chi.Router) {
+		r.Use(authMiddleware.ValidateSessionToken)
+		r.Route("/api/user/orders", func(r chi.Router) {
+			//router.Post("/", orderHandler))
+			//router.Get("/", userService.ReceptionMetricHandler())
+		})
 	})
 }
 
-func HandleBalanceRequests(router chi.Router, balanceHandler handlers.BalanceHandler) {
-	router.Route("/api/user/balance", func(r chi.Router) {
-		//router.Get("/balance", userService.ReceptionMetricHandler())
-		//router.Post("/balance/withdraw", userService.ReceptionMetricHandler())
-	})
-	router.Route("/api/user/withdraws", func(r chi.Router) {
-		//router.Get("/", userService.ReceptionMetricHandler())
-	})
+func HandleBalanceRequests(router chi.Router,
+	tokenValidator middlewares.SessionTokenValidator,
+	balanceHandler handlers.BalanceHandler,
+) {
+	//router.Route("/api/user/balance", func(r chi.Router) {
+	//router.Use(tokenValidator.ValidateSessionToken)
+	//router.Get("/balance", userService.ReceptionMetricHandler())
+	//router.Post("/balance/withdraw", userService.ReceptionMetricHandler())
+	//})
+	//router.Route("/api/user/withdraws", func(r chi.Router) {
+	//router.Use(tokenValidator.ValidateSessionToken)
+	//router.Get("/", userService.ReceptionMetricHandler())
+	//})
 }
 
 func HandleHeathCheck(router chi.Router, hc HealthChecker) {
