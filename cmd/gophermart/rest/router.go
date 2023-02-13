@@ -22,11 +22,10 @@ func HandleUserRequests(
 	router chi.Router,
 	userHandler handlers.UserHandler,
 ) {
-	//router.Post("/api/user/register/", userHandler.RegisterHandler())
 	router.Group(func(r chi.Router) {
 		r.Route("/api/user", func(r chi.Router) {
-			r.Post("/register/", userHandler.RegisterHandler())
-			r.Post("/login/", userHandler.LoginHandler())
+			r.Post("/register", userHandler.RegisterHandler())
+			r.Post("/login", userHandler.LoginHandler())
 		})
 	})
 }
@@ -38,8 +37,8 @@ func HandleOrderRequests(router chi.Router,
 	router.Group(func(r chi.Router) {
 		r.Use(authMiddleware.ValidateSessionToken)
 		r.Route("/api/user/orders", func(r chi.Router) {
-			//router.Post("/", orderHandler))
-			//router.Get("/", userService.ReceptionMetricHandler())
+			r.Post("/", orderHandler.SetOrderHandler())
+			r.Get("/", orderHandler.GetOrdersHandler())
 		})
 	})
 }

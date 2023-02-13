@@ -39,7 +39,7 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 		ok, err := uh.userService.IsExistUsername(ctx, userRequest.Username)
 		if err != nil {
 			log.Printf("failed to check user existance: %v", err)
-			http.Error(writer, err.Error(), http.StatusNotImplemented)
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if ok {
@@ -50,15 +50,16 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 		err = uh.userService.CreateUser(ctx, userRequest)
 		if err != nil {
 			log.Printf("failed to create user: %v", err)
-			http.Error(writer, err.Error(), http.StatusNotImplemented)
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Username)
 		http.SetCookie(writer, &http.Cookie{
-			Name:    "session_token",
-			Value:   sessionToken,
-			Expires: expiresAt,
+			Name:     "session_token",
+			Value:    sessionToken,
+			Expires:  expiresAt,
+			HttpOnly: true,
 		})
 	}
 }
@@ -76,7 +77,7 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 		ok, err := uh.userService.IsCorrectUserPassword(ctx, userRequest)
 		if err != nil {
 			log.Printf("failed to check user password: %v", err)
-			http.Error(writer, err.Error(), http.StatusNotImplemented)
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if !ok {
@@ -86,9 +87,10 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 		}
 		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Username)
 		http.SetCookie(writer, &http.Cookie{
-			Name:    "session_token",
-			Value:   sessionToken,
-			Expires: expiresAt,
+			Name:     "session_token",
+			Value:    sessionToken,
+			Expires:  expiresAt,
+			HttpOnly: true,
 		})
 	}
 }

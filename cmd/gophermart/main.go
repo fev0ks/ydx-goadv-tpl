@@ -26,20 +26,24 @@ func main() {
 	}
 	sessionStorage := storage.NewSessionStorage()
 	userRepo := repository.NewUserRepository(dbProvider)
+	orderRepo := repository.NewOrderRepository(dbProvider)
+
 	sessionService := service.NewSessionService(sessionStorage, appConfig.SessionLifetime)
+
 	userService := service.NewUserService(userRepo)
+	orderService := service.NewOrderService(orderRepo)
 
 	router := rest.NewRouter()
 
 	userHandler := handlers.NewUserHandler(sessionService, userService)
-	orderHandler := handlers.NewOrderHandler()
+	orderHandler := handlers.NewOrderHandler(orderService)
 	balanceHandler := handlers.NewBalanceHandler()
 	healthChecker := rest.NewHealthChecker(ctx, dbProvider)
 
-	tokenValidator := middlewares.NewAuthMiddleware(sessionService)
+	authMiddleware := middlewares.NewAuthMiddleware(sessionService)
 	rest.HandleUserRequests(router, userHandler)
-	rest.HandleOrderRequests(router, tokenValidator, orderHandler)
-	rest.HandleBalanceRequests(router, tokenValidator, balanceHandler)
+	rest.HandleOrderRequests(router, authMiddleware, orderHandler)
+	rest.HandleBalanceRequests(router, authMiddleware, balanceHandler)
 	rest.HandleHeathCheck(router, healthChecker)
 
 	shutdown.ProperExitDefer(&shutdown.ExitHandler{

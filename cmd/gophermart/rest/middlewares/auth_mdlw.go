@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"context"
+	"github.com/fev0ks/ydx-goadv-tpl/model/consts"
 	"github.com/fev0ks/ydx-goadv-tpl/service"
 	"net/http"
 )
@@ -24,6 +26,7 @@ func (am *authMiddleware) ValidateSessionToken(next http.Handler) http.Handler {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
 			if err == http.ErrNoCookie {
+
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -37,6 +40,8 @@ func (am *authMiddleware) ValidateSessionToken(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		ctx := context.WithValue(r.Context(), consts.UserCtxKey, session.Username)
+		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
 }
