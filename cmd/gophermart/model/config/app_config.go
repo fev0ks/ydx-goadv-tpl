@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	defaultAddress         = "localhost:8081"
+	defaultAddress         = "localhost:8080"
 	defaultDBConfig        = ""
 	defaultSessionLifetime = time.Minute * 30
 )
