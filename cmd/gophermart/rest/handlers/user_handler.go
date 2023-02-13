@@ -36,15 +36,20 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		ok, err := uh.userService.IsExistUsername(ctx, userRequest.Username)
+		if userRequest.Login == "" || userRequest.Password == "" {
+			log.Printf("login or password is empty")
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		ok, err := uh.userService.IsExistUsername(ctx, userRequest.Login)
 		if err != nil {
 			log.Printf("failed to check user existance: %v", err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if ok {
-			log.Printf("user '%s' already exist", userRequest.Username)
-			http.Error(writer, fmt.Sprintf("user '%s' already exist", userRequest.Username), http.StatusConflict)
+			log.Printf("user '%s' already exist", userRequest.Login)
+			http.Error(writer, fmt.Sprintf("user '%s' already exist", userRequest.Login), http.StatusConflict)
 			return
 		}
 		err = uh.userService.CreateUser(ctx, userRequest)
@@ -54,13 +59,14 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 			return
 		}
 
-		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Username)
+		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Login)
 		http.SetCookie(writer, &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
 			Expires:  expiresAt,
 			HttpOnly: true,
 		})
+		log.Printf("'%s' was signed up", userRequest.Login)
 	}
 }
 
@@ -85,12 +91,13 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 			writer.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Username)
+		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Login)
 		http.SetCookie(writer, &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
 			Expires:  expiresAt,
 			HttpOnly: true,
 		})
+		log.Printf("'%s' was signed in", userRequest.Login)
 	}
 }

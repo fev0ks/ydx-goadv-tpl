@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model/consts"
 	"github.com/fev0ks/ydx-goadv-tpl/service"
@@ -34,10 +33,15 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 			return
 		}
 		username := usernameCtx.(string)
-		order, err := oh.getOrder(ctx, request)
+		order, err := oh.getOrder(request)
 		if err != nil {
 			log.Printf("failed to parse order request: %v", err)
 			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !oh.orderService.ValidateOrder(ctx, order) {
+			log.Printf("request order is not in Luna format")
+			http.Error(writer, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -49,7 +53,7 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 	}
 }
 
-func (oh *orderHandler) getOrder(ctx context.Context, request *http.Request) (int, error) {
+func (oh *orderHandler) getOrder(request *http.Request) (int, error) {
 	body, err := io.ReadAll(request.Body)
 	defer request.Body.Close()
 	if err != nil {
@@ -61,9 +65,6 @@ func (oh *orderHandler) getOrder(ctx context.Context, request *http.Request) (in
 	order, err := strconv.Atoi(string(body))
 	if err != nil {
 		return 0, fmt.Errorf("request order in wrong format: %v", err)
-	}
-	if !oh.orderService.ValidateOrder(ctx, order) {
-		return 0, fmt.Errorf("request order is not in Luna format")
 	}
 	return order, nil
 }

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/fev0ks/ydx-goadv-tpl/model/config"
+	"github.com/fev0ks/ydx-goadv-tpl/config"
 	"github.com/fev0ks/ydx-goadv-tpl/repository"
 	"github.com/fev0ks/ydx-goadv-tpl/rest"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/handlers"

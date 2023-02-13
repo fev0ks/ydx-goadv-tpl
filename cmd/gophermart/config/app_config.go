@@ -25,7 +25,7 @@ func InitAppConfig() *AppConfig {
 	pflag.StringVarP(&addressF, "a", "a", defaultAddress, "Address of the server")
 	dbConfig := getDBConfig()
 	var dbDsnF string
-	pflag.StringVarP(&dbDsnF, "d", "d", defaultDBConfig, "Postgres DB DSN")
+	pflag.StringVarP(&dbDsnF, "d", "d", defaultDBConfig, "Postgres DB URI")
 	pflag.Parse()
 	if address == "" {
 		address = addressF
@@ -41,10 +41,10 @@ func InitAppConfig() *AppConfig {
 }
 
 func getAddress() string {
-	return os.Getenv("ADDRESS")
+	return os.Getenv("RUN_ADDRESS")
 }
 func getDBConfig() string {
-	return os.Getenv("DATABASE_URL")
+	return os.Getenv("DATABASE_URI")
 }
 func getSessionLifetime() time.Duration {
 	reportInterval := os.Getenv("SESSION_LIFETIME")

@@ -28,7 +28,7 @@ func (us *userService) CreateUser(ctx context.Context, userRequest *model.UserRe
 		return err
 	}
 	newUser := &model.User{
-		Username: userRequest.Username,
+		Username: userRequest.Login,
 		Password: hashedPassword,
 	}
 	return us.userRepo.CreateUser(ctx, newUser)
@@ -39,7 +39,7 @@ func (us *userService) GetUser(ctx context.Context, username string) (*model.Use
 }
 
 func (us *userService) IsCorrectUserPassword(ctx context.Context, userRequest *model.UserRequest) (bool, error) {
-	user, err := us.GetUser(ctx, userRequest.Username)
+	user, err := us.GetUser(ctx, userRequest.Login)
 	if user == nil || err != nil {
 		return false, err
 	}
