@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/handlers"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/middlewares"
 	"github.com/go-chi/chi/v5"
@@ -13,8 +12,8 @@ func NewRouter() chi.Router {
 	router.Use(middlewares.TimerTrace)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Compress(3, rest.ApplicationJSON, rest.TextPlain))
-	router.Use(middlewares.Decompress)
+	//router.Use(middleware.Compress(3, rest.ApplicationJSON, rest.TextPlain))
+	//router.Use(middlewares.Decompress)
 	return router
 }
 
