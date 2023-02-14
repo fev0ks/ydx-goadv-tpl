@@ -33,18 +33,18 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 		err := json.NewDecoder(request.Body).Decode(userRequest)
 		if err != nil {
 			log.Printf("failed to parse user request: %v", err)
-			writer.WriteHeader(http.StatusBadRequest)
+			http.Error(writer, fmt.Sprintf("failed to parse user request: %v", err), http.StatusBadRequest)
 			return
 		}
 		if userRequest.Login == "" || userRequest.Password == "" {
 			log.Printf("login or password is empty")
-			writer.WriteHeader(http.StatusBadRequest)
+			http.Error(writer, "login or password is empty", http.StatusBadRequest)
 			return
 		}
 		ok, err := uh.userService.IsExistUsername(ctx, userRequest.Login)
 		if err != nil {
 			log.Printf("failed to check user existance: %v", err)
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			http.Error(writer, fmt.Sprintf("failed to check user existance: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if ok {
@@ -55,7 +55,7 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 		err = uh.userService.CreateUser(ctx, userRequest)
 		if err != nil {
 			log.Printf("failed to create user: %v", err)
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			http.Error(writer, fmt.Sprintf("failed to create user: %v", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -77,18 +77,18 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 		err := json.NewDecoder(request.Body).Decode(userRequest)
 		if err != nil {
 			log.Printf("failed to parse user request: %v", err)
-			writer.WriteHeader(http.StatusBadRequest)
+			http.Error(writer, fmt.Sprintf("failed to parse user request: %v", err), http.StatusBadRequest)
 			return
 		}
 		ok, err := uh.userService.IsCorrectUserPassword(ctx, userRequest)
 		if err != nil {
 			log.Printf("failed to check user password: %v", err)
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			http.Error(writer, fmt.Sprintf("failed to check user password: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if !ok {
 			log.Printf("password is incorrect")
-			writer.WriteHeader(http.StatusUnauthorized)
+			http.Error(writer, "password is incorrect", http.StatusUnauthorized)
 			return
 		}
 		sessionToken, expiresAt := uh.sessionService.CreateSession(userRequest.Login)

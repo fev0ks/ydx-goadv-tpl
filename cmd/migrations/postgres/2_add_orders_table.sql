@@ -1,7 +1,10 @@
 CREATE table if not exists "orders"
 (
-    "order_id" int PRIMARY KEY NOT null,
-    "username" varchar         NOT null,
+    "number"      varchar PRIMARY KEY NOT null,
+    "status"      varchar         NOT NULL,
+    "accrual"     float4,
+    "uploaded_at" varchar,
+    "username"    varchar         NOT null,
     CONSTRAINT fk_username FOREIGN KEY ("username") REFERENCES users ("username")
 );
 ---- create above / drop below ----

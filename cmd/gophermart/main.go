@@ -5,6 +5,7 @@ import (
 	"github.com/fev0ks/ydx-goadv-tpl/config"
 	"github.com/fev0ks/ydx-goadv-tpl/repository"
 	"github.com/fev0ks/ydx-goadv-tpl/rest"
+	"github.com/fev0ks/ydx-goadv-tpl/rest/clients"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/handlers"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/middlewares"
 	"github.com/fev0ks/ydx-goadv-tpl/service"
@@ -28,10 +29,11 @@ func main() {
 	userRepo := repository.NewUserRepository(dbProvider)
 	orderRepo := repository.NewOrderRepository(dbProvider)
 
+	accrualClient := clients.NewAccrualClient(clients.CreateClient(appConfig.AccrualAddress))
 	sessionService := service.NewSessionService(sessionStorage, appConfig.SessionLifetime)
 
 	userService := service.NewUserService(userRepo)
-	orderService := service.NewOrderService(orderRepo)
+	orderService := service.NewOrderService(orderRepo, accrualClient)
 
 	router := rest.NewRouter()
 

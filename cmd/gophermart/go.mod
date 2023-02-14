@@ -4,9 +4,11 @@ go 1.19
 
 require (
 	github.com/go-chi/chi/v5 v5.0.8
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.7.1
 	github.com/jackc/tern v1.13.0
+	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/theplant/luhn v0.0.0-20170224032821-81a1a381387a
 	golang.org/x/crypto v0.6.0
@@ -30,6 +32,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
+	golang.org/x/net v0.6.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model/consts"
+	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
 	"github.com/fev0ks/ydx-goadv-tpl/service"
 	"io"
 	"log"
@@ -33,23 +35,37 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 			return
 		}
 		username := usernameCtx.(string)
-		order, err := oh.getOrder(request)
+		orderNumber, err := oh.getOrder(request)
 		if err != nil {
 			log.Printf("failed to parse order request: %v", err)
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+			http.Error(writer, fmt.Sprintf("failed to parse order request: %v", err), http.StatusBadRequest)
 			return
 		}
-		if !oh.orderService.ValidateOrder(ctx, order) {
-			log.Printf("request order is not in Luna format")
-			http.Error(writer, err.Error(), http.StatusUnprocessableEntity)
+		if !oh.orderService.ValidateOrder(ctx, orderNumber) {
+			log.Printf("request '%d' order is not in Luna format", orderNumber)
+			http.Error(writer, fmt.Sprintf("request '%d' order is not in Luna format", orderNumber), http.StatusUnprocessableEntity)
+			return
+		}
+		isUsed, err := oh.orderService.IsOrderUsed(ctx, orderNumber)
+		if err != nil {
+			http.Error(writer,
+				fmt.Sprintf("failed to check '%d' order existance: %v", orderNumber, err),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		if isUsed {
+			log.Printf("request order is already used")
+			http.Error(writer, fmt.Sprintf("request '%d' order is already used", orderNumber), http.StatusConflict)
 			return
 		}
 
-		err = oh.orderService.SetOrder(ctx, username, order)
+		err = oh.orderService.SetOrder(ctx, username, orderNumber)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		writer.WriteHeader(http.StatusAccepted)
 	}
 }
 
@@ -85,8 +101,10 @@ func (oh *orderHandler) GetOrdersHandler() func(writer http.ResponseWriter, requ
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		_, err = writer.Write([]byte(fmt.Sprintf("%v", orders)))
+		writer.Header().Add(rest.ContentType, rest.ApplicationJSON)
+		err = json.NewEncoder(writer).Encode(orders)
 		if err != nil {
+			log.Printf("failed to write orders to response for %s: %v", username, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}

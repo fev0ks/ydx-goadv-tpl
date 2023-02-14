@@ -1,7 +1,5 @@
 package model
 
-import "time"
-
 const (
 	NewStatus        = OrderStatus("NEW")
 	ProcessingStatus = OrderStatus("PROCESSING")
@@ -12,7 +10,14 @@ const (
 type OrderStatus string
 
 type Order struct {
-	Number     int
-	UploadedAt time.Time `json:"uploaded_at"`
+	Number     string
 	Status     OrderStatus
+	Accrual    float32
+	UploadedAt string `json:"uploaded_at"`
+}
+
+type AccrualOrder struct {
+	Order   string
+	Status  OrderStatus
+	Accrual float32
 }
