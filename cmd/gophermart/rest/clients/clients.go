@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-func CreateClient(baseUrl string) *resty.Client {
+func CreateClient(baseURL string) *resty.Client {
 	client := resty.New().
-		SetBaseURL(baseUrl).
+		SetBaseURL(baseURL).
 		SetRetryCount(1).
 		SetRetryWaitTime(1 * time.Second).
 		SetRetryMaxWaitTime(2 * time.Second)

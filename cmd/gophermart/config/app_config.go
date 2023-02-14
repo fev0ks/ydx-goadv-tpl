@@ -17,7 +17,7 @@ const (
 type AppConfig struct {
 	ServerAddress   string
 	AccrualAddress  string
-	DbConnection    string
+	DBConnection    string
 	SessionLifetime time.Duration
 }
 
@@ -49,7 +49,7 @@ func InitAppConfig() *AppConfig {
 	return &AppConfig{
 		ServerAddress:   address,
 		AccrualAddress:  accrualAddress,
-		DbConnection:    dbConfig,
+		DBConnection:    dbConfig,
 		SessionLifetime: getSessionLifetime(),
 	}
 }

@@ -17,7 +17,7 @@ const (
 	migrationsDir = "./cmd/migrations/postgres/"
 )
 
-type DbProvider interface {
+type DBProvider interface {
 	HealthCheck(ctx context.Context) error
 	GetConnection() *pgx.Conn
 }
@@ -26,13 +26,13 @@ type pgProvider struct {
 	conn *pgx.Conn
 }
 
-func NewPgProvider(ctx context.Context, appConfig *config.AppConfig) (DbProvider, error) {
+func NewPgProvider(ctx context.Context, appConfig *config.AppConfig) (DBProvider, error) {
 	if appConfig == nil {
 		log.Println("Postgres DB config is empty")
 		return nil, errors.New("failed to init pg repository: appConfig is nil")
 	}
 	pg := &pgProvider{}
-	err := pg.connect(ctx, appConfig.DbConnection)
+	err := pg.connect(ctx, appConfig.DBConnection)
 	if err != nil {
 		return nil, err
 	}

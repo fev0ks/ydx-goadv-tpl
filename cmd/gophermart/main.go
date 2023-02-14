@@ -17,17 +17,17 @@ import (
 )
 
 func main() {
-	ctx := context.WithValue(context.Background(), "service", "tpl")
+	ctx := context.Background()
 	log.Printf("Server args: %s", os.Args[1:])
 	appConfig := config.InitAppConfig()
 
-	dbProvider, err := repository.NewPgProvider(ctx, appConfig)
+	DBProvider, err := repository.NewPgProvider(ctx, appConfig)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	sessionStorage := storage.NewSessionStorage()
-	userRepo := repository.NewUserRepository(dbProvider)
-	orderRepo := repository.NewOrderRepository(dbProvider)
+	userRepo := repository.NewUserRepository(DBProvider)
+	orderRepo := repository.NewOrderRepository(DBProvider)
 
 	accrualClient := clients.NewAccrualClient(clients.CreateClient(appConfig.AccrualAddress))
 	sessionService := service.NewSessionService(sessionStorage, appConfig.SessionLifetime)
@@ -40,7 +40,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(sessionService, userService)
 	orderHandler := handlers.NewOrderHandler(orderService)
 	balanceHandler := handlers.NewBalanceHandler()
-	healthChecker := rest.NewHealthChecker(ctx, dbProvider)
+	healthChecker := rest.NewHealthChecker(ctx, DBProvider)
 
 	authMiddleware := middlewares.NewAuthMiddleware(sessionService)
 	rest.HandleUserRequests(router, userHandler)

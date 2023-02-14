@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	ordersApi = "/api/orders/{number}"
+	ordersAPI = "/api/orders/{number}"
 )
 
 type AccrualClient interface {
@@ -36,7 +36,7 @@ func (ac accrualClient) GetOrderStatus(ctx context.Context, orderNumber int) (*m
 			"number": fmt.Sprintf("%d", orderNumber),
 		}).
 		SetContext(ctx).
-		Get(ordersApi)
+		Get(ordersAPI)
 	if err != nil {
 		return nil, err
 	}

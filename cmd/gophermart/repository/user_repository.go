@@ -13,10 +13,10 @@ type UserRepository interface {
 }
 
 type userRepository struct {
-	db DbProvider
+	db DBProvider
 }
 
-func NewUserRepository(db DbProvider) UserRepository {
+func NewUserRepository(db DBProvider) UserRepository {
 	return &userRepository{db}
 }
 

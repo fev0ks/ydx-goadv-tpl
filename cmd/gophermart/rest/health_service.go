@@ -9,10 +9,10 @@ import (
 
 type HealthChecker struct {
 	ctx  context.Context
-	repo repository.DbProvider
+	repo repository.DBProvider
 }
 
-func NewHealthChecker(ctx context.Context, repo repository.DbProvider) HealthChecker {
+func NewHealthChecker(ctx context.Context, repo repository.DBProvider) HealthChecker {
 	return HealthChecker{ctx, repo}
 }
 
