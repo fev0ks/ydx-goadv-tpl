@@ -8,4 +8,6 @@ const (
 	ApplicationJSON = "application/json"
 
 	ContentEncoding = "Content-Encoding"
+
+	RetryAfter = "Retry-After"
 )

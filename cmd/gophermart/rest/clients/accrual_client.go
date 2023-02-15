@@ -3,11 +3,12 @@ package clients
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
 	"github.com/pkg/errors"
 	"log"
+	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
@@ -18,7 +19,7 @@ const (
 )
 
 type AccrualClient interface {
-	GetOrderStatus(ctx context.Context, orderNumber int) (*model.AccrualOrder, error)
+	GetOrderStatus(ctx context.Context, orderNumber string) (*model.AccrualOrder, error)
 }
 
 type accrualClient struct {
@@ -29,16 +30,28 @@ func NewAccrualClient(client *resty.Client) AccrualClient {
 	return &accrualClient{client}
 }
 
-func (ac accrualClient) GetOrderStatus(ctx context.Context, orderNumber int) (*model.AccrualOrder, error) {
+func (ac accrualClient) GetOrderStatus(ctx context.Context, orderNumber string) (*model.AccrualOrder, error) {
 	resp, err := ac.client.R().
 		SetHeader(rest.ContentType, rest.TextPlain).
 		SetPathParams(map[string]string{
-			"number": fmt.Sprintf("%d", orderNumber),
+			"number": orderNumber,
 		}).
 		SetContext(ctx).
 		Get(ordersAPI)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode() == http.StatusTooManyRequests {
+		retryAfterV := resp.Header().Get(rest.RetryAfter)
+		retryAfter, err := strconv.Atoi(retryAfterV)
+		if err != nil {
+			log.Printf("failed to get RetryAfter value: %v", err)
+			retryAfter = 1
+		}
+		return nil, model.RetryError{
+			Err:        errors.New("Too Many Requests"),
+			RetryAfter: retryAfter,
+		}
 	}
 	return ac.parseOrderStatusResponse(resp)
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 	"github.com/fev0ks/ydx-goadv-tpl/repository"
 	"github.com/fev0ks/ydx-goadv-tpl/rest/clients"
@@ -26,7 +27,7 @@ func NewOrderService(orderRepo repository.OrderRepository, accrualClient clients
 }
 
 func (os orderService) SetOrder(ctx context.Context, username string, orderNumber int) error {
-	accrualOrder, err := os.accrualClient.GetOrderStatus(ctx, orderNumber)
+	accrualOrder, err := os.accrualClient.GetOrderStatus(ctx, fmt.Sprintf("%d", orderNumber))
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 
 type OrderRepository interface {
 	InsertOrUpdateOrder(ctx context.Context, username string, order *model.Order) error
+	UpdateOrderStatus(ctx context.Context, number int, newStatus model.OrderStatus) error
 	IsOrderExist(ctx context.Context, orderNumber int) (bool, error)
 	GetOrders(ctx context.Context, username string) ([]*model.Order, error)
 }
@@ -32,6 +33,18 @@ func (or orderRepository) InsertOrUpdateOrder(ctx context.Context, username stri
 	if err != nil {
 		log.Printf("failed to create order: %v", err)
 		return errors.Errorf("failed to insert order '%v': %v", order, err)
+	}
+	return nil
+}
+
+func (or orderRepository) UpdateOrderStatus(ctx context.Context, number int, newStatus model.OrderStatus) error {
+	log.Printf("Persisting update Order %d to %s", number, newStatus)
+	_, err := or.db.GetConnection().Exec(ctx,
+		"update orders set status = $1 where number = $2", newStatus, number,
+	)
+	if err != nil {
+		log.Printf("failed to update order status '%d' to '%s': %v", number, newStatus, err)
+		return errors.Errorf("failed to update order status'%d' to '%s': %v", number, newStatus, err)
 	}
 	return nil
 }

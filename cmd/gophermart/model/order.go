@@ -21,3 +21,8 @@ type AccrualOrder struct {
 	Status  OrderStatus
 	Accrual float32
 }
+
+type UserOrder struct {
+	Username string
+	Order    string
+}
