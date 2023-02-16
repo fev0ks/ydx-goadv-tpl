@@ -6,11 +6,7 @@ type UserRequest struct {
 }
 
 type User struct {
+	UserId   int    `json:"-" db:"user_id"`
 	Username string `json:"login"`
 	Password []byte `json:"password"`
-}
-
-type Balance struct {
-	Current  int64
-	Withdraw int64
 }

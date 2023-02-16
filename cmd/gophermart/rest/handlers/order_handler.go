@@ -28,13 +28,13 @@ func NewOrderHandler(orderService service.OrderService) OrderHandler {
 func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserCtxKey)
+		usernameCtx := ctx.Value(consts.UserIdCtxKey)
 		if usernameCtx == nil {
-			log.Printf("username is missed in context")
-			http.Error(writer, "username is missed in context", http.StatusUnauthorized)
+			log.Printf("userId is missed in context")
+			http.Error(writer, "userId is missed in context", http.StatusUnauthorized)
 			return
 		}
-		username := usernameCtx.(string)
+		userId := usernameCtx.(int)
 		orderNumber, err := oh.getOrder(request)
 		if err != nil {
 			log.Printf("failed to parse order request: %v", err)
@@ -60,7 +60,7 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 			return
 		}
 
-		err = oh.orderService.SetOrder(ctx, username, orderNumber)
+		err = oh.orderService.SetOrder(ctx, userId, orderNumber)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
@@ -88,26 +88,31 @@ func (oh *orderHandler) getOrder(request *http.Request) (int, error) {
 func (oh *orderHandler) GetOrdersHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserCtxKey)
+		usernameCtx := ctx.Value(consts.UserIdCtxKey)
 		if usernameCtx == nil {
 			log.Printf("username is missed in context")
 			http.Error(writer, "username is missed in context", http.StatusUnauthorized)
 			return
 		}
-		username := usernameCtx.(string)
-		orders, err := oh.orderService.GetOrders(ctx, username)
+		userId := usernameCtx.(int)
+		orders, err := oh.orderService.GetOrders(ctx, userId)
 		if err != nil {
-			log.Printf("failed to get orders for %s: %v", username, err)
+			log.Printf("failed to get orders for %d: %v", userId, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writer.Header().Add(rest.ContentType, rest.ApplicationJSON)
 		err = json.NewEncoder(writer).Encode(orders)
 		if err != nil {
-			log.Printf("failed to write orders to response for %s: %v", username, err)
+			log.Printf("failed to write orders to response for %d: %v", userId, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writer.WriteHeader(http.StatusOK)
+		if len(orders) == 0 {
+			writer.WriteHeader(http.StatusNoContent)
+			return
+		} else {
+			writer.WriteHeader(http.StatusOK)
+		}
 	}
 }

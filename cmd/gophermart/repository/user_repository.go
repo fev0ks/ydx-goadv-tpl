@@ -8,7 +8,7 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *model.User) error
+	CreateUser(ctx context.Context, user *model.User) (*model.User, error)
 	GetUser(ctx context.Context, username string) (*model.User, error)
 }
 
@@ -20,12 +20,17 @@ func NewUserRepository(db DBProvider) UserRepository {
 	return &userRepository{db}
 }
 
-func (u userRepository) CreateUser(ctx context.Context, user *model.User) error {
-	_, err := u.db.GetConnection().Exec(ctx, "insert into users(username, password) values($1, $2)", user.Username, user.Password)
+func (u userRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
+	var userId int
+	row := u.db.
+		GetConnection().
+		QueryRow(ctx, "insert into users(username, password) values($1, $2) RETURNING user_id", user.Username, user.Password)
+	err := row.Scan(&userId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	user.UserId = userId
+	return user, nil
 }
 
 func (u userRepository) GetUser(ctx context.Context, username string) (*model.User, error) {

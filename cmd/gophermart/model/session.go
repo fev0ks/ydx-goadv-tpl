@@ -3,8 +3,8 @@ package model
 import "time"
 
 type Session struct {
-	Username string
-	Expiry   time.Time
+	UserId int
+	Expiry time.Time
 }
 
 func (s *Session) IsExpired() bool {

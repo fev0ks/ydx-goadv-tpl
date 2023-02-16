@@ -10,10 +10,10 @@ import (
 )
 
 type OrderRepository interface {
-	InsertOrUpdateOrder(ctx context.Context, username string, order *model.Order) error
-	UpdateOrderStatus(ctx context.Context, number int, newStatus model.OrderStatus) error
-	IsOrderExist(ctx context.Context, orderNumber int) (bool, error)
-	GetOrders(ctx context.Context, username string) ([]*model.Order, error)
+	InsertOrder(ctx context.Context, userId int, order *model.Order) error
+	UpdateOrder(ctx context.Context, order *model.Order) error
+	IsOrderExist(ctx context.Context, orderId int) (bool, error)
+	GetOrders(ctx context.Context, userId int) ([]*model.Order, error)
 }
 
 type orderRepository struct {
@@ -24,35 +24,47 @@ func NewOrderRepository(db DBProvider) OrderRepository {
 	return &orderRepository{db}
 }
 
-func (or orderRepository) InsertOrUpdateOrder(ctx context.Context, username string, order *model.Order) error {
+func (or orderRepository) InsertOrder(ctx context.Context, userId int, order *model.Order) error {
 	log.Printf("Persisting Order: %v", order)
-	_, err := or.db.GetConnection().Exec(ctx,
-		"insert into orders(number, status, accrual, uploaded_at, username) values($1, $2, $3, $4, $5) on conflict (number) do update set status = excluded.status, uploaded_at = excluded.uploaded_at",
-		order.Number, order.Status, order.Accrual, order.UploadedAt, username,
+	tx, err := or.db.GetConnection().Begin(ctx)
+	defer tx.Rollback(ctx)
+	if err != nil {
+		log.Printf("failed to open Tx: %v", err)
+		return err
+	}
+	_, err = tx.Exec(ctx,
+		"insert into orders(order_id, status, accrual, uploaded_at) values($1, $2, $3, $4)",
+		order.Number, order.Status, order.Accrual, order.UploadedAt,
 	)
 	if err != nil {
 		log.Printf("failed to create order: %v", err)
 		return errors.Errorf("failed to insert order '%v': %v", order, err)
 	}
+	_, err = tx.Exec(ctx, "insert into user_orders(user_id, order_id) values($1, $2)", userId, order.Number)
+	if err != nil {
+		log.Printf("failed to insert user %d - order %d relation: %v", userId, order.Number, err)
+		return errors.Errorf("failed to insert user %d - order %d relation: %v", userId, order.Number, err)
+	}
+	tx.Commit(ctx)
 	return nil
 }
 
-func (or orderRepository) UpdateOrderStatus(ctx context.Context, number int, newStatus model.OrderStatus) error {
-	log.Printf("Persisting update Order %d to %s", number, newStatus)
+func (or orderRepository) UpdateOrder(ctx context.Context, order *model.Order) error {
+	log.Printf("Persisting update Order %v", order)
 	_, err := or.db.GetConnection().Exec(ctx,
-		"update orders set status = $1 where number = $2", newStatus, number,
+		"update orders set status = $1, accrual = $2 where order_id = $2", order.Status, order.Accrual, order.Number,
 	)
 	if err != nil {
-		log.Printf("failed to update order status '%d' to '%s': %v", number, newStatus, err)
-		return errors.Errorf("failed to update order status'%d' to '%s': %v", number, newStatus, err)
+		log.Printf("failed to update order %v: %v", order, err)
+		return errors.Errorf("failed to update order %v: %v", order, err)
 	}
 	return nil
 }
 
-func (or orderRepository) IsOrderExist(ctx context.Context, orderNumber int) (bool, error) {
-	log.Printf("Checking %d Order existing", orderNumber)
+func (or orderRepository) IsOrderExist(ctx context.Context, orderId int) (bool, error) {
+	log.Printf("Checking %d Order existing", orderId)
 	var orderID int
-	row := or.db.GetConnection().QueryRow(ctx, "select number from orders where number = $1", fmt.Sprintf("%d", orderNumber))
+	row := or.db.GetConnection().QueryRow(ctx, "select order_id from orders where order_id = $1", fmt.Sprintf("%d", orderId))
 	err := row.Scan(&orderID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -63,13 +75,14 @@ func (or orderRepository) IsOrderExist(ctx context.Context, orderNumber int) (bo
 	return true, nil
 }
 
-func (or orderRepository) GetOrders(ctx context.Context, username string) ([]*model.Order, error) {
-	log.Printf("Getting Orders for %s", username)
+func (or orderRepository) GetOrders(ctx context.Context, userId int) ([]*model.Order, error) {
+	log.Printf("Getting Orders for userId: %d", userId)
 	var orders []*model.Order
-	rows, err := or.db.GetConnection().Query(ctx, "select number, status, accrual, uploaded_at from orders where username = $1", username)
+	rows, err := or.db.GetConnection().Query(ctx,
+		"select o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders u on u.user_id = $1 and o.order_id = u.order_id", userId)
 	if err != nil {
-		log.Printf("failed to get orders for '%s': %v", username, err)
-		return nil, errors.Errorf("failed to get orders for '%s': %v", username, err)
+		log.Printf("failed to get orders for '%d': %v", userId, err)
+		return nil, errors.Errorf("failed to get orders for '%d': %v", userId, err)
 	}
 	for rows.Next() {
 		order := &model.Order{}

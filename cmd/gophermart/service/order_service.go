@@ -11,10 +11,10 @@ import (
 )
 
 type OrderService interface {
-	SetOrder(ctx context.Context, username string, orderNumber int) error
-	ValidateOrder(ctx context.Context, orderNumber int) bool
-	IsOrderUsed(ctx context.Context, orderNumber int) (bool, error)
-	GetOrders(ctx context.Context, username string) ([]*model.Order, error)
+	SetOrder(ctx context.Context, userId int, orderId int) error
+	ValidateOrder(ctx context.Context, orderId int) bool
+	IsOrderUsed(ctx context.Context, orderId int) (bool, error)
+	GetOrders(ctx context.Context, userId int) ([]*model.Order, error)
 }
 
 type orderService struct {
@@ -26,8 +26,8 @@ func NewOrderService(orderRepo repository.OrderRepository, accrualClient clients
 	return &orderService{orderRepo, accrualClient}
 }
 
-func (os orderService) SetOrder(ctx context.Context, username string, orderNumber int) error {
-	accrualOrder, err := os.accrualClient.GetOrderStatus(ctx, fmt.Sprintf("%d", orderNumber))
+func (os orderService) SetOrder(ctx context.Context, userId int, orderId int) error {
+	accrualOrder, err := os.accrualClient.GetOrderStatus(ctx, fmt.Sprintf("%d", orderId))
 	if err != nil {
 		return err
 	}
@@ -35,19 +35,19 @@ func (os orderService) SetOrder(ctx context.Context, username string, orderNumbe
 		Number:     accrualOrder.Order,
 		Status:     accrualOrder.Status,
 		Accrual:    accrualOrder.Accrual,
-		UploadedAt: time.Now().Format(time.RFC3339),
+		UploadedAt: time.Now(),
 	}
-	return os.orderRepo.InsertOrUpdateOrder(ctx, username, order)
+	return os.orderRepo.InsertOrder(ctx, userId, order)
 }
 
-func (os orderService) ValidateOrder(_ context.Context, orderNumber int) bool {
-	return luhn.Valid(orderNumber)
+func (os orderService) ValidateOrder(_ context.Context, orderId int) bool {
+	return luhn.Valid(orderId)
 }
 
-func (os orderService) IsOrderUsed(ctx context.Context, orderNumber int) (bool, error) {
-	return os.orderRepo.IsOrderExist(ctx, orderNumber)
+func (os orderService) IsOrderUsed(ctx context.Context, orderId int) (bool, error) {
+	return os.orderRepo.IsOrderExist(ctx, orderId)
 }
 
-func (os orderService) GetOrders(ctx context.Context, username string) ([]*model.Order, error) {
-	return os.orderRepo.GetOrders(ctx, username)
+func (os orderService) GetOrders(ctx context.Context, userId int) ([]*model.Order, error) {
+	return os.orderRepo.GetOrders(ctx, userId)
 }

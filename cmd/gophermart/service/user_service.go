@@ -8,9 +8,9 @@ import (
 )
 
 type UserService interface {
-	CreateUser(ctx context.Context, userRequest *model.UserRequest) error
+	CreateUser(ctx context.Context, userRequest *model.UserRequest) (*model.User, error)
 	GetUser(ctx context.Context, username string) (*model.User, error)
-	IsCorrectUserPassword(ctx context.Context, userRequest *model.UserRequest) (bool, error)
+	ValidatePassword(ctx context.Context, user *model.User, password string) (bool, error)
 	IsExistUsername(ctx context.Context, username string) (bool, error)
 }
 
@@ -22,10 +22,10 @@ func NewUserService(repo repository.UserRepository) UserService {
 	return &userService{repo}
 }
 
-func (us *userService) CreateUser(ctx context.Context, userRequest *model.UserRequest) error {
+func (us *userService) CreateUser(ctx context.Context, userRequest *model.UserRequest) (*model.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userRequest.Password), 8)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	newUser := &model.User{
 		Username: userRequest.Login,
@@ -38,12 +38,8 @@ func (us *userService) GetUser(ctx context.Context, username string) (*model.Use
 	return us.userRepo.GetUser(ctx, username)
 }
 
-func (us *userService) IsCorrectUserPassword(ctx context.Context, userRequest *model.UserRequest) (bool, error) {
-	user, err := us.GetUser(ctx, userRequest.Login)
-	if user == nil || err != nil {
-		return false, err
-	}
-	if err = bcrypt.CompareHashAndPassword(user.Password, []byte(userRequest.Password)); err != nil {
+func (us *userService) ValidatePassword(_ context.Context, user *model.User, password string) (bool, error) {
+	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(password)); err != nil {
 		if err == bcrypt.ErrMismatchedHashAndPassword {
 			return false, nil
 		}

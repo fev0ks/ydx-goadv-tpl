@@ -92,7 +92,7 @@ func (op *orderProcessingService) saveOrder(ctx context.Context, accrualOrder *m
 		Number:     accrualOrder.Order,
 		Status:     accrualOrder.Status,
 		Accrual:    accrualOrder.Accrual,
-		UploadedAt: time.Now().Format(time.RFC3339),
+		UploadedAt: time.Now(),
 	}
-	return op.orderRepo.InsertOrUpdateOrder(ctx, "", order)
+	return op.orderRepo.InsertOrder(ctx, 123, order)
 }
