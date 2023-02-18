@@ -59,7 +59,7 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 			return
 		}
 
-		sessionToken, expiresAt := uh.sessionService.CreateSession(user.UserId)
+		sessionToken, expiresAt := uh.sessionService.CreateSession(user.UserID)
 		http.SetCookie(writer, &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
@@ -82,7 +82,8 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 		}
 		user, err := uh.userService.GetUser(ctx, userRequest.Login)
 		if err != nil {
-			return
+			log.Printf("failed to get user: %v", err)
+			http.Error(writer, fmt.Sprintf("failed to get user: %v", err), http.StatusInternalServerError)
 		}
 		ok, err := uh.userService.ValidatePassword(ctx, user, userRequest.Password)
 		if err != nil {
@@ -95,7 +96,7 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 			http.Error(writer, "password is incorrect", http.StatusUnauthorized)
 			return
 		}
-		sessionToken, expiresAt := uh.sessionService.CreateSession(user.UserId)
+		sessionToken, expiresAt := uh.sessionService.CreateSession(user.UserID)
 		http.SetCookie(writer, &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,

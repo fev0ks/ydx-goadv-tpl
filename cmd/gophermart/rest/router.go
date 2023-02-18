@@ -27,6 +27,7 @@ func HandleUserRequests(
 			r.Post("/login", userHandler.LoginHandler())
 		})
 	})
+
 }
 
 func HandleOrderRequests(router chi.Router,
@@ -43,18 +44,17 @@ func HandleOrderRequests(router chi.Router,
 }
 
 func HandleBalanceRequests(router chi.Router,
-	tokenValidator middlewares.SessionTokenValidator,
+	authMiddleware middlewares.SessionTokenValidator,
 	balanceHandler handlers.BalanceHandler,
 ) {
-	//router.Route("/api/user/balance", func(r chi.Router) {
-	//router.Use(tokenValidator.ValidateSessionToken)
-	//router.Get("/balance", userService.ReceptionMetricHandler())
-	//router.Post("/balance/withdraw", userService.ReceptionMetricHandler())
-	//})
-	//router.Route("/api/user/withdraws", func(r chi.Router) {
-	//router.Use(tokenValidator.ValidateSessionToken)
-	//router.Get("/", userService.ReceptionMetricHandler())
-	//})
+	router.Group(func(r chi.Router) {
+		r.Use(authMiddleware.ValidateSessionToken)
+		r.Route("/api/user/balance", func(r chi.Router) {
+			r.Get("/", balanceHandler.GetBalanceHandler())
+			r.Post("/withdraw", balanceHandler.BalanceWithdrawHandler())
+		})
+		r.Get("/api/user/withdrawals", balanceHandler.GetWithdrawalsHandler())
+	})
 }
 
 func HandleHeathCheck(router chi.Router, hc HealthChecker) {

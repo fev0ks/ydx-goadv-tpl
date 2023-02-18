@@ -3,7 +3,7 @@ package model
 import "encoding/json"
 
 type Balance struct {
-	UserId   int `json:"-" db:"user_id"`
+	userID   int `json:"-" db:"user_id"`
 	Current  int64
 	Withdraw int64
 }

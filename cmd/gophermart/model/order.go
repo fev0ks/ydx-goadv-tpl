@@ -43,7 +43,7 @@ type AccrualOrder struct {
 	Accrual int
 }
 
-func (o *AccrualOrder) UnmarshalJSON(data []byte) error {
+func (ao *AccrualOrder) UnmarshalJSON(data []byte) error {
 	var accrualOrderIn struct {
 		Order   string
 		Status  OrderStatus
@@ -56,15 +56,24 @@ func (o *AccrualOrder) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	o.Order = orderNumber
-	o.Status = accrualOrderIn.Status
+	ao.Order = orderNumber
+	ao.Status = accrualOrderIn.Status
 	if accrualOrderIn.Accrual != nil {
-		o.Accrual = int(*accrualOrderIn.Accrual * 100)
+		ao.Accrual = int(*accrualOrderIn.Accrual * 100)
+	} else {
+		ao.Accrual = 0
 	}
 	return nil
 }
+func (ao *AccrualOrder) ToOrder() *Order {
+	return &Order{
+		Number:  ao.Order,
+		Status:  ao.Status,
+		Accrual: ao.Accrual,
+	}
+}
 
 type UserOrder struct {
-	Username string
-	Order    string
+	UserId int
+	Order  *Order
 }

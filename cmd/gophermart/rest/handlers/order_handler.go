@@ -18,11 +18,12 @@ type OrderHandler interface {
 }
 
 type orderHandler struct {
-	orderService service.OrderService
+	orderService      service.OrderService
+	processingService service.OrderProcessingService
 }
 
-func NewOrderHandler(orderService service.OrderService) OrderHandler {
-	return &orderHandler{orderService}
+func NewOrderHandler(orderService service.OrderService, processingService service.OrderProcessingService) OrderHandler {
+	return &orderHandler{orderService, processingService}
 }
 
 func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, request *http.Request) {
@@ -30,46 +31,42 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 		ctx := request.Context()
 		usernameCtx := ctx.Value(consts.UserIdCtxKey)
 		if usernameCtx == nil {
-			log.Printf("userId is missed in context")
-			http.Error(writer, "userId is missed in context", http.StatusUnauthorized)
+			log.Printf("userID is missed in context")
+			http.Error(writer, "userID is missed in context", http.StatusUnauthorized)
 			return
 		}
-		userId := usernameCtx.(int)
-		orderNumber, err := oh.getOrder(request)
+		userID := usernameCtx.(int)
+		orderID, err := oh.getRequestOrder(request)
 		if err != nil {
 			log.Printf("failed to parse order request: %v", err)
 			http.Error(writer, fmt.Sprintf("failed to parse order request: %v", err), http.StatusBadRequest)
 			return
 		}
-		if !oh.orderService.ValidateOrder(ctx, orderNumber) {
-			log.Printf("request '%d' order is not in Luna format", orderNumber)
-			http.Error(writer, fmt.Sprintf("request '%d' order is not in Luna format", orderNumber), http.StatusUnprocessableEntity)
+		if !oh.orderService.ValidateOrder(ctx, orderID) {
+			log.Printf("request '%d' order is not in Luna format", orderID)
+			http.Error(writer, fmt.Sprintf("request '%d' order is not in Luna format", orderID), http.StatusUnprocessableEntity)
 			return
 		}
-		isUsed, err := oh.orderService.IsOrderUsed(ctx, orderNumber)
+		isUsed, err := oh.orderService.IsOrderUsed(ctx, orderID)
 		if err != nil {
 			http.Error(writer,
-				fmt.Sprintf("failed to check '%d' order existance: %v", orderNumber, err),
+				fmt.Sprintf("failed to check '%d' order existance: %v", orderID, err),
 				http.StatusInternalServerError,
 			)
 			return
 		}
 		if isUsed {
 			log.Printf("request order is already used")
-			http.Error(writer, fmt.Sprintf("request '%d' order is already used", orderNumber), http.StatusConflict)
+			http.Error(writer, fmt.Sprintf("request '%d' order is already used", orderID), http.StatusConflict)
 			return
 		}
 
-		err = oh.orderService.SetOrder(ctx, userId, orderNumber)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		oh.processingService.AddToProcessingQueue(userID, orderID)
 		writer.WriteHeader(http.StatusAccepted)
 	}
 }
 
-func (oh *orderHandler) getOrder(request *http.Request) (int, error) {
+func (oh *orderHandler) getRequestOrder(request *http.Request) (int, error) {
 	body, err := io.ReadAll(request.Body)
 	defer request.Body.Close()
 	if err != nil {
@@ -94,17 +91,17 @@ func (oh *orderHandler) GetOrdersHandler() func(writer http.ResponseWriter, requ
 			http.Error(writer, "username is missed in context", http.StatusUnauthorized)
 			return
 		}
-		userId := usernameCtx.(int)
-		orders, err := oh.orderService.GetOrders(ctx, userId)
+		userID := usernameCtx.(int)
+		orders, err := oh.orderService.GetOrders(ctx, userID)
 		if err != nil {
-			log.Printf("failed to get orders for %d: %v", userId, err)
+			log.Printf("failed to get orders for %d: %v", userID, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writer.Header().Add(rest.ContentType, rest.ApplicationJSON)
 		err = json.NewEncoder(writer).Encode(orders)
 		if err != nil {
-			log.Printf("failed to write orders to response for %d: %v", userId, err)
+			log.Printf("failed to write orders to response for %d: %v", userID, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}

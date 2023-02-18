@@ -1,0 +1,90 @@
+package repository
+
+import (
+	"context"
+	"fmt"
+	"github.com/fev0ks/ydx-goadv-tpl/model"
+	"github.com/jackc/pgx/v4"
+	"github.com/pkg/errors"
+	"log"
+)
+
+type BalanceRepository interface {
+	GetBalance(ctx context.Context, userID int) (*model.Balance, error)
+	BalanceWithdraw(ctx context.Context, userID int, withdraw *model.Withdraw) error
+	GetWithdrawals(ctx context.Context, userID int) ([]*model.Withdraw, error)
+}
+
+type balanceRepository struct {
+	db DBProvider
+}
+
+func NewBalancewRepository(db DBProvider) BalanceRepository {
+	return &balanceRepository{db}
+}
+
+func (br *balanceRepository) GetBalance(ctx context.Context, userID int) (*model.Balance, error) {
+	result := br.db.
+		GetConnection().
+		QueryRow(ctx,
+			"select current, withdraw from user_balance where user_id = $1",
+			userID)
+	balance := &model.Balance{}
+	err := result.Scan(&balance.Current, &balance.Withdraw)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get balance of '%s': %v", userID, err)
+	}
+	return balance, nil
+}
+
+func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, withdraw *model.Withdraw) error {
+	tx, err := br.db.GetConnection().Begin(ctx)
+	defer tx.Rollback(ctx)
+	exec, err := tx.Exec(ctx, "update user_balance set current = current - $1 where user_id = $2", withdraw.Sum, userID)
+	if err != nil {
+		log.Printf("failed to withdraw for '%d': %v", userID, err)
+		return errors.Errorf("failed to withdraw for '%d': %v", userID, err)
+	}
+	if len(exec) == 0 {
+		return errors.New("Balance was not updated ?")
+	}
+	withdrawRow := tx.QueryRow(ctx,
+		"insert into withdraws(order_id, sum, processed_at) values ($1, $2, $3) returning withdraw_id",
+		withdraw.Order, withdraw.Sum, withdraw.ProcessedAt)
+	var withdrawId int
+	err = withdrawRow.Scan(&withdrawId)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx,
+		"insert into user_withdraws(user_id, withdraw_id) values ($1, $2)",
+		userID, withdrawId)
+	if err != nil {
+		return err
+	}
+	tx.Commit(ctx)
+	return nil
+}
+
+func (br *balanceRepository) GetWithdrawals(ctx context.Context, userID int) ([]*model.Withdraw, error) {
+	log.Printf("Getting withdraws for userID: %d", userID)
+	var withdraws []*model.Withdraw
+	rows, err := br.db.GetConnection().Query(ctx,
+		"select w.order_id, w.sum, w.processed_at from withdraws w join user_withdraws u on u.withdraw_id = w.withdraw_id and u.user_id = $1", userID)
+	if err != nil {
+		log.Printf("failed to get withdraws for '%d': %v", userID, err)
+		return nil, errors.Errorf("failed to get withdraws for '%d': %v", userID, err)
+	}
+	for rows.Next() {
+		withdraw := &model.Withdraw{}
+		err := rows.Scan(&withdraw.Order, &withdraw.Sum, &withdraw.ProcessedAt)
+		if err != nil {
+			return nil, err
+		}
+		withdraws = append(withdraws, withdraw)
+	}
+	return withdraws, nil
+}

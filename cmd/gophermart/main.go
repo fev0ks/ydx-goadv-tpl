@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	log.Printf("Server args: %s", os.Args[1:])
 	appConfig := config.InitAppConfig()
 
@@ -28,18 +28,21 @@ func main() {
 	sessionStorage := storage.NewSessionStorage()
 	userRepo := repository.NewUserRepository(DBProvider)
 	orderRepo := repository.NewOrderRepository(DBProvider)
+	balanceRepo := repository.NewBalancewRepository(DBProvider)
 
 	accrualClient := clients.NewAccrualClient(clients.CreateClient(appConfig.AccrualAddress))
 	sessionService := service.NewSessionService(sessionStorage, appConfig.SessionLifetime)
 
+	orderProcessingService := service.NewOrderProcessingService(ctx, accrualClient, orderRepo)
 	userService := service.NewUserService(userRepo)
 	orderService := service.NewOrderService(orderRepo, accrualClient)
+	balanceService := service.NewBalanceService(balanceRepo)
 
 	router := rest.NewRouter()
 
 	userHandler := handlers.NewUserHandler(sessionService, userService)
-	orderHandler := handlers.NewOrderHandler(orderService)
-	balanceHandler := handlers.NewBalanceHandler()
+	orderHandler := handlers.NewOrderHandler(orderService, orderProcessingService)
+	balanceHandler := handlers.NewBalanceHandler(balanceService, orderService)
 	healthChecker := rest.NewHealthChecker(ctx, DBProvider)
 
 	authMiddleware := middlewares.NewAuthMiddleware(sessionService)
@@ -49,6 +52,7 @@ func main() {
 	rest.HandleHeathCheck(router, healthChecker)
 
 	shutdown.ProperExitDefer(&shutdown.ExitHandler{
+		ToCancel: []context.CancelFunc{cancel},
 		//ToStop:    stopCh,
 		//ToExecute: toExecute,
 		//ToClose:   []io.Closer{repository},

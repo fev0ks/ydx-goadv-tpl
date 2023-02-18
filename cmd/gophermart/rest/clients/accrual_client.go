@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
 	"github.com/pkg/errors"
@@ -19,7 +20,7 @@ const (
 )
 
 type AccrualClient interface {
-	GetOrderStatus(ctx context.Context, orderNumber string) (*model.AccrualOrder, error)
+	GetOrderStatus(ctx context.Context, orderID int) (*model.AccrualOrder, error)
 }
 
 type accrualClient struct {
@@ -30,11 +31,11 @@ func NewAccrualClient(client *resty.Client) AccrualClient {
 	return &accrualClient{client}
 }
 
-func (ac accrualClient) GetOrderStatus(ctx context.Context, orderNumber string) (*model.AccrualOrder, error) {
+func (ac accrualClient) GetOrderStatus(ctx context.Context, orderID int) (*model.AccrualOrder, error) {
 	resp, err := ac.client.R().
 		SetHeader(rest.ContentType, rest.TextPlain).
 		SetPathParams(map[string]string{
-			"number": orderNumber,
+			"number": fmt.Sprintf("%d", orderID),
 		}).
 		SetContext(ctx).
 		Get(ordersAPI)

@@ -11,15 +11,14 @@ import (
 )
 
 type OrderProcessingService interface {
-	AddToProcessingQueue(userOrder *model.UserOrder)
+	AddToProcessingQueue(userID, orderID int)
 }
 
 type orderProcessingService struct {
-	mutex         *sync.RWMutex
+	*sync.RWMutex
+	queue         []*model.UserOrder
 	accrualClient clients.AccrualClient
 	orderRepo     repository.OrderRepository
-	queueCh       chan *model.UserOrder
-	queue         []*model.UserOrder
 }
 
 func NewOrderProcessingService(
@@ -29,70 +28,87 @@ func NewOrderProcessingService(
 ) OrderProcessingService {
 	op := &orderProcessingService{
 		&sync.RWMutex{},
+		make([]*model.UserOrder, 0),
 		accrualClient,
 		orderRepo,
-		make(chan *model.UserOrder, 100),
-		make([]*model.UserOrder, 0),
 	}
 	go op.orderQueueProcessing(ctx)
-	//go op.queuePoller()
 	return op
 }
 
-func (op *orderProcessingService) AddToProcessingQueue(userOrder *model.UserOrder) {
-	//op.mutex.Lock()
-	//op.queue = append(op.queue, userOrder)
-	//op.mutex.Unlock()
-	op.queueCh <- userOrder
+func (op *orderProcessingService) AddToProcessingQueue(userID, orderID int) {
+	userOrder := &model.UserOrder{
+		UserId: userID,
+		Order: &model.Order{
+			Number:     orderID,
+			UploadedAt: time.Now(),
+		},
+	}
+	op.Lock()
+	op.queue = append(op.queue, userOrder)
+	op.Unlock()
 }
 
-//
-////TODO bull shit
-//func (op *orderProcessingService) queuePoller() {
-//	for {
-//		op.mutex.Lock()
-//		defer op.mutex.Unlock()
-//		if len(op.queue) > 0 {
-//			op.queueCh <- op.queue[0]
-//		}
-//	}
-//}
-
 func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ctx.Done():
+			log.Println("Order Queue processing is canceled")
 			return
-		case userOrder := <-op.queueCh:
-			accrualOrder, err := op.accrualClient.GetOrderStatus(ctx, userOrder.Order)
-			if err != nil {
-				log.Printf("%v", err)
-				retryError, ok := err.(*model.RetryError)
-				if !ok {
-					log.Printf("%v", err)
+		case <-ticker.C:
+			toRetry := make([]*model.UserOrder, 0)
+			for _, userOrder := range op.retrieveQueueData() {
+				accrualOrder, err := op.accrualClient.GetOrderStatus(ctx, userOrder.Order.Number)
+				if err != nil {
+					retryError, ok := err.(*model.RetryError)
+					if !ok {
+						log.Printf("failed to get order accrual status: %v", err)
+						continue
+					}
+					log.Printf("Accrual warning StatusTooManyRequests: %v", err)
+					toRetry = append(toRetry, userOrder)
+					waitingDuration := time.Second * time.Duration(retryError.RetryAfter)
+					log.Printf("Waiting for: %v", waitingDuration)
+					time.Sleep(waitingDuration)
 					continue
 				}
-				op.queueCh <- userOrder //lock?????
-				time.Sleep(time.Second * time.Duration(retryError.RetryAfter))
+				if userOrder.Order.Status == "" {
+					err = op.saveUpdate(ctx, userOrder.UserId, accrualOrder)
+				} else if userOrder.Order.Status != accrualOrder.Status {
+					err = op.updateOrder(ctx, userOrder.UserId, accrualOrder)
+				}
+				if err != nil {
+					log.Printf("failed to save order %v: %v", accrualOrder, err)
+					continue
+				}
+				if accrualOrder.Status != model.InvalidStatus && accrualOrder.Status != model.ProcessedStatus {
+					toRetry = append(toRetry, userOrder)
+				}
 			}
-			err = op.saveOrder(ctx, accrualOrder)
-			if err != nil {
-				log.Printf("%v", err)
-				continue
-			}
-			if accrualOrder.Status != model.ProcessedStatus && accrualOrder.Status != model.InvalidStatus {
-				op.queueCh <- userOrder
-			}
+			op.backToQueue(toRetry)
 		}
 	}
 }
 
-func (op *orderProcessingService) saveOrder(ctx context.Context, accrualOrder *model.AccrualOrder) error {
-	order := &model.Order{
-		Number:     accrualOrder.Order,
-		Status:     accrualOrder.Status,
-		Accrual:    accrualOrder.Accrual,
-		UploadedAt: time.Now(),
-	}
-	return op.orderRepo.InsertOrder(ctx, 123, order)
+func (op *orderProcessingService) retrieveQueueData() []*model.UserOrder {
+	op.Lock()
+	defer op.Unlock()
+	data := op.queue
+	op.queue = op.queue[0:0]
+	return data
+}
+
+func (op *orderProcessingService) backToQueue(backToQueue []*model.UserOrder) {
+	op.Lock()
+	defer op.Unlock()
+	op.queue = append(op.queue, backToQueue...)
+}
+
+func (op *orderProcessingService) saveUpdate(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
+	return op.orderRepo.InsertOrder(ctx, userID, accrualOrder.ToOrder())
+}
+
+func (op *orderProcessingService) updateOrder(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
+	return op.orderRepo.UpdateOrder(ctx, userID, accrualOrder.ToOrder())
 }

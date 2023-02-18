@@ -9,7 +9,7 @@ import (
 
 type SessionService interface {
 	GetSession(sessionToken string) *model.Session
-	CreateSession(userId int) (string, time.Time)
+	CreateSession(userID int) (string, time.Time)
 	DeleteSession(username string)
 }
 
@@ -22,11 +22,11 @@ func NewSessionService(sessionStorage storage.SessionStorage, sessionLifetime ti
 	return &sessionService{sessionStorage, sessionLifetime}
 }
 
-func (s sessionService) CreateSession(userId int) (string, time.Time) {
+func (s sessionService) CreateSession(userID int) (string, time.Time) {
 	sessionToken := uuid.NewString()
 	expiresAt := time.Now().Add(s.sessionLifetime)
 	s.sessionStorage.SaveSession(sessionToken, &model.Session{
-		UserId: userId,
+		UserId: userID,
 		Expiry: expiresAt,
 	})
 	return sessionToken, expiresAt
