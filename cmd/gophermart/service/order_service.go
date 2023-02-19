@@ -4,47 +4,38 @@ import (
 	"context"
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 	"github.com/fev0ks/ydx-goadv-tpl/repository"
-	"github.com/fev0ks/ydx-goadv-tpl/rest/clients"
 	"github.com/theplant/luhn"
-	"time"
+	"log"
 )
 
 type OrderService interface {
 	SetOrder(ctx context.Context, userID int, orderID int) error
 	ValidateOrder(ctx context.Context, orderID int) bool
-	IsOrderUsed(ctx context.Context, orderID int) (bool, error)
+	GetOrder(ctx context.Context, orderID int) (*model.Order, error)
 	GetOrders(ctx context.Context, userID int) ([]*model.Order, error)
 }
 
 type orderService struct {
-	orderRepo     repository.OrderRepository
-	accrualClient clients.AccrualClient
+	orderRepo          repository.OrderRepository
+	orderProcessingSrv OrderProcessingService
 }
 
-func NewOrderService(orderRepo repository.OrderRepository, accrualClient clients.AccrualClient) OrderService {
-	return &orderService{orderRepo, accrualClient}
+func NewOrderService(orderRepo repository.OrderRepository, orderProcessingSrv OrderProcessingService) OrderService {
+	return &orderService{orderRepo, orderProcessingSrv}
 }
 
-func (os orderService) SetOrder(ctx context.Context, userID int, orderID int) error {
-	accrualOrder, err := os.accrualClient.GetOrderStatus(ctx, orderID)
-	if err != nil {
-		return err
-	}
-	order := &model.Order{
-		Number:     accrualOrder.Order,
-		Status:     accrualOrder.Status,
-		Accrual:    accrualOrder.Accrual,
-		UploadedAt: time.Now(),
-	}
-	return os.orderRepo.InsertOrder(ctx, userID, order)
+func (os orderService) SetOrder(_ context.Context, userID int, orderID int) error {
+	log.Printf("Additing order '%d' to accrual processing queue order, user: '%d'", orderID, userID)
+	os.orderProcessingSrv.AddToAccrualProcessingQueue(userID, orderID)
+	return nil
 }
 
 func (os orderService) ValidateOrder(_ context.Context, orderID int) bool {
 	return luhn.Valid(orderID)
 }
 
-func (os orderService) IsOrderUsed(ctx context.Context, orderID int) (bool, error) {
-	return os.orderRepo.IsOrderExist(ctx, orderID)
+func (os orderService) GetOrder(ctx context.Context, orderID int) (*model.Order, error) {
+	return os.orderRepo.GetOrder(ctx, orderID)
 }
 
 func (os orderService) GetOrders(ctx context.Context, userID int) ([]*model.Order, error) {

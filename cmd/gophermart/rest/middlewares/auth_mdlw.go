@@ -40,7 +40,7 @@ func (am *authMiddleware) ValidateSessionToken(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), consts.UserIdCtxKey, session.UserId)
+		ctx := context.WithValue(r.Context(), consts.UserIDCtxKey, session.UserID)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})

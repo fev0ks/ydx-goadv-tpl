@@ -42,31 +42,40 @@ func (ac accrualClient) GetOrderStatus(ctx context.Context, orderID int) (*model
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode() == http.StatusTooManyRequests {
-		retryAfterV := resp.Header().Get(rest.RetryAfter)
-		retryAfter, err := strconv.Atoi(retryAfterV)
-		if err != nil {
-			log.Printf("failed to get RetryAfter value: %v", err)
-			retryAfter = 1
-		}
-		return nil, model.RetryError{
-			Err:        errors.New("Too Many Requests"),
-			RetryAfter: retryAfter,
-		}
-	}
-	return ac.parseOrderStatusResponse(resp)
-}
 
-func (ac accrualClient) parseOrderStatusResponse(resp *resty.Response) (*model.AccrualOrder, error) {
-	if resp.StatusCode()/100 != 2 {
-		respBody := resp.Body()
-		return nil, errors.Errorf("Accrual OrderStatus response status is not successfull: '%s', body: '%s'", resp.Status(), strings.TrimSpace(string(respBody)))
-	}
 	log.Printf("Process Order status is %s", resp.Status())
+	if resp.StatusCode()/100 != 2 {
+		if resp.StatusCode() == http.StatusTooManyRequests {
+			retryAfterV := resp.Header().Get(rest.RetryAfter)
+			retryAfter, err := strconv.Atoi(retryAfterV)
+			if err != nil {
+				log.Printf("failed to get RetryAfter value: %v", err)
+				retryAfter = 1
+			}
+			log.Printf("Process Order is available after %d sec", retryAfter)
+			return nil, &model.RetryError{
+				Err:        errors.New("Too Many Requests"),
+				RetryAfter: retryAfter,
+			}
+		} else {
+			respBody := resp.Body()
+			return nil, errors.Errorf("Accrual OrderStatus response status is not successfull: '%s', body: '%s'",
+				resp.Status(), strings.TrimSpace(string(respBody)))
+		}
+	}
 	accrualOrder := &model.AccrualOrder{}
-	err := json.Unmarshal(resp.Body(), &accrualOrder)
-	if err != nil {
-		return nil, err
+	if resp.StatusCode() == http.StatusNoContent {
+		log.Printf("Order is not presented in accrual system '%d'", orderID)
+		accrualOrder = &model.AccrualOrder{
+			Order:   orderID,
+			Status:  model.InvalidStatus,
+			Accrual: 0,
+		}
+	} else {
+		err = json.Unmarshal(resp.Body(), &accrualOrder)
+		if err != nil {
+			return nil, err
+		}
 	}
 	log.Printf("Processed Order is '%v'", accrualOrder)
 	return accrualOrder, nil

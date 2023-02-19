@@ -33,15 +33,15 @@ func main() {
 	accrualClient := clients.NewAccrualClient(clients.CreateClient(appConfig.AccrualAddress))
 	sessionService := service.NewSessionService(sessionStorage, appConfig.SessionLifetime)
 
-	orderProcessingService := service.NewOrderProcessingService(ctx, accrualClient, orderRepo)
 	userService := service.NewUserService(userRepo)
-	orderService := service.NewOrderService(orderRepo, accrualClient)
+	orderProcessingService := service.NewOrderProcessingService(ctx, accrualClient, orderRepo)
+	orderService := service.NewOrderService(orderRepo, orderProcessingService)
 	balanceService := service.NewBalanceService(balanceRepo)
 
 	router := rest.NewRouter()
 
 	userHandler := handlers.NewUserHandler(sessionService, userService)
-	orderHandler := handlers.NewOrderHandler(orderService, orderProcessingService)
+	orderHandler := handlers.NewOrderHandler(orderService)
 	balanceHandler := handlers.NewBalanceHandler(balanceService, orderService)
 	healthChecker := rest.NewHealthChecker(ctx, DBProvider)
 

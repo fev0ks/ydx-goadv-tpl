@@ -29,7 +29,7 @@ func NewBalanceHandler(balanceService service.BalanceService, orderService servi
 func (bh *balanceHandler) GetBalanceHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserIdCtxKey)
+		usernameCtx := ctx.Value(consts.UserIDCtxKey)
 		if usernameCtx == nil {
 			log.Printf("user is missed in context")
 			http.Error(writer, "Unauthorized", http.StatusUnauthorized)
@@ -56,7 +56,7 @@ func (bh *balanceHandler) GetBalanceHandler() func(writer http.ResponseWriter, r
 func (bh *balanceHandler) BalanceWithdrawHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserIdCtxKey)
+		usernameCtx := ctx.Value(consts.UserIDCtxKey)
 		if usernameCtx == nil {
 			log.Printf("user is missed in context")
 			http.Error(writer, "Unauthorized", http.StatusUnauthorized)
@@ -75,7 +75,7 @@ func (bh *balanceHandler) BalanceWithdrawHandler() func(writer http.ResponseWrit
 			http.Error(writer, fmt.Sprintf("request '%d' order is not in Luna format", withdrawRequest.Order), http.StatusUnprocessableEntity)
 			return
 		}
-		isUsed, err := bh.orderService.IsOrderUsed(ctx, withdrawRequest.Order)
+		order, err := bh.orderService.GetOrder(ctx, withdrawRequest.Order)
 		if err != nil {
 			http.Error(writer,
 				fmt.Sprintf("failed to check '%d' order existance: %v", withdrawRequest.Order, err),
@@ -83,10 +83,12 @@ func (bh *balanceHandler) BalanceWithdrawHandler() func(writer http.ResponseWrit
 			)
 			return
 		}
-		if isUsed {
-			log.Printf("request order is already used")
-			http.Error(writer, fmt.Sprintf("request '%d' order is already used", withdrawRequest.Order), http.StatusConflict)
-			return
+		if order != nil {
+			if order.UserID != userID {
+				log.Printf("request order '%d' is already used by another user", withdrawRequest.Order)
+				http.Error(writer, fmt.Sprintf("request order '%d' is already used by another user", withdrawRequest.Order), http.StatusConflict)
+				return
+			}
 		}
 		//ADD different errors
 		err = bh.balanceService.BalanceWithdraw(ctx, userID, withdrawRequest)
@@ -101,7 +103,7 @@ func (bh *balanceHandler) BalanceWithdrawHandler() func(writer http.ResponseWrit
 func (bh *balanceHandler) GetWithdrawalsHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserIdCtxKey)
+		usernameCtx := ctx.Value(consts.UserIDCtxKey)
 		if usernameCtx == nil {
 			log.Printf("username is missed in context")
 			http.Error(writer, "username is missed in context", http.StatusUnauthorized)
@@ -114,6 +116,10 @@ func (bh *balanceHandler) GetWithdrawalsHandler() func(writer http.ResponseWrite
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if len(withdrawals) == 0 {
+			writer.WriteHeader(http.StatusNoContent)
+			return
+		}
 		writer.Header().Add(rest.ContentType, rest.ApplicationJSON)
 		err = json.NewEncoder(writer).Encode(withdrawals)
 		if err != nil {
@@ -121,11 +127,7 @@ func (bh *balanceHandler) GetWithdrawalsHandler() func(writer http.ResponseWrite
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if len(withdrawals) == 0 {
-			writer.WriteHeader(http.StatusNoContent)
-			return
-		} else {
-			writer.WriteHeader(http.StatusOK)
-		}
+		writer.WriteHeader(http.StatusOK)
+
 	}
 }

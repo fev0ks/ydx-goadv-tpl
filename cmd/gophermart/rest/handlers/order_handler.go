@@ -18,18 +18,17 @@ type OrderHandler interface {
 }
 
 type orderHandler struct {
-	orderService      service.OrderService
-	processingService service.OrderProcessingService
+	orderService service.OrderService
 }
 
-func NewOrderHandler(orderService service.OrderService, processingService service.OrderProcessingService) OrderHandler {
-	return &orderHandler{orderService, processingService}
+func NewOrderHandler(orderService service.OrderService) OrderHandler {
+	return &orderHandler{orderService}
 }
 
 func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserIdCtxKey)
+		usernameCtx := ctx.Value(consts.UserIDCtxKey)
 		if usernameCtx == nil {
 			log.Printf("userID is missed in context")
 			http.Error(writer, "userID is missed in context", http.StatusUnauthorized)
@@ -47,7 +46,7 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 			http.Error(writer, fmt.Sprintf("request '%d' order is not in Luna format", orderID), http.StatusUnprocessableEntity)
 			return
 		}
-		isUsed, err := oh.orderService.IsOrderUsed(ctx, orderID)
+		order, err := oh.orderService.GetOrder(ctx, orderID)
 		if err != nil {
 			http.Error(writer,
 				fmt.Sprintf("failed to check '%d' order existance: %v", orderID, err),
@@ -55,13 +54,18 @@ func (oh *orderHandler) SetOrderHandler() func(writer http.ResponseWriter, reque
 			)
 			return
 		}
-		if isUsed {
-			log.Printf("request order is already used")
-			http.Error(writer, fmt.Sprintf("request '%d' order is already used", orderID), http.StatusConflict)
-			return
+		if order != nil {
+			if order.UserID != userID {
+				log.Printf("request order '%d' is already used by another user", orderID)
+				http.Error(writer, fmt.Sprintf("request order '%d' is already used by another user", orderID), http.StatusConflict)
+				return
+			} else {
+				log.Printf("request '%d' order is already used by current user", orderID)
+				http.Error(writer, fmt.Sprintf("request '%d' order is already used by current user", orderID), http.StatusOK)
+				return
+			}
 		}
-
-		oh.processingService.AddToProcessingQueue(userID, orderID)
+		_ = oh.orderService.SetOrder(ctx, userID, orderID)
 		writer.WriteHeader(http.StatusAccepted)
 	}
 }
@@ -85,7 +89,7 @@ func (oh *orderHandler) getRequestOrder(request *http.Request) (int, error) {
 func (oh *orderHandler) GetOrdersHandler() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		usernameCtx := ctx.Value(consts.UserIdCtxKey)
+		usernameCtx := ctx.Value(consts.UserIDCtxKey)
 		if usernameCtx == nil {
 			log.Printf("username is missed in context")
 			http.Error(writer, "username is missed in context", http.StatusUnauthorized)
@@ -98,18 +102,16 @@ func (oh *orderHandler) GetOrdersHandler() func(writer http.ResponseWriter, requ
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if len(orders) == 0 {
+			writer.WriteHeader(http.StatusNoContent)
+			return
+		}
 		writer.Header().Add(rest.ContentType, rest.ApplicationJSON)
 		err = json.NewEncoder(writer).Encode(orders)
 		if err != nil {
 			log.Printf("failed to write orders to response for %d: %v", userID, err)
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
-		}
-		if len(orders) == 0 {
-			writer.WriteHeader(http.StatusNoContent)
-			return
-		} else {
-			writer.WriteHeader(http.StatusOK)
 		}
 	}
 }

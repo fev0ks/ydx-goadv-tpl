@@ -17,10 +17,16 @@ const (
 type OrderStatus string
 
 type Order struct {
+	UserID     int `json:"-"`
 	Number     int `db:"order_id"`
 	Status     OrderStatus
 	Accrual    int
 	UploadedAt time.Time `json:"uploaded_at"`
+}
+
+func (o *Order) String() string {
+	return fmt.Sprintf("#%d - status: '%s', accrual:'%d', uploadedAt:%s",
+		o.Number, o.Status, o.Accrual, o.UploadedAt.Format(time.RFC3339))
 }
 
 func (o *Order) MarshalJSON() ([]byte, error) {
@@ -74,6 +80,6 @@ func (ao *AccrualOrder) ToOrder() *Order {
 }
 
 type UserOrder struct {
-	UserId int
+	UserID int
 	Order  *Order
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 )
 
+// SessionStorage TODO use redis
 type SessionStorage interface {
 	GetSession(sessionToken string) *model.Session
 	DeleteSession(sessionToken string)

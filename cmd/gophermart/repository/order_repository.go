@@ -11,7 +11,7 @@ import (
 type OrderRepository interface {
 	InsertOrder(ctx context.Context, userID int, order *model.Order) error
 	UpdateOrder(ctx context.Context, userID int, order *model.Order) error
-	IsOrderExist(ctx context.Context, orderID int) (bool, error)
+	GetOrder(ctx context.Context, orderID int) (*model.Order, error)
 	GetOrders(ctx context.Context, userID int) ([]*model.Order, error)
 }
 
@@ -26,11 +26,11 @@ func NewOrderRepository(db DBProvider) OrderRepository {
 func (or orderRepository) InsertOrder(ctx context.Context, userID int, order *model.Order) error {
 	log.Printf("Persisting Order: %v", order)
 	tx, err := or.db.GetConnection().Begin(ctx)
-	defer tx.Rollback(ctx)
 	if err != nil {
-		log.Printf("failed to open Tx: %v", err)
-		return err
+		log.Printf("failed to open order tx '%d': %v", userID, err)
+		return errors.Errorf("failed to order open tx '%d': %v", userID, err)
 	}
+	defer tx.Rollback(ctx)
 	_, err = tx.Exec(ctx,
 		"insert into orders(order_id, status, accrual, uploaded_at) values($1, $2, $3, $4)",
 		order.Number, order.Status, order.Accrual, order.UploadedAt,
@@ -55,6 +55,10 @@ func (or orderRepository) InsertOrder(ctx context.Context, userID int, order *mo
 func (or orderRepository) UpdateOrder(ctx context.Context, userID int, order *model.Order) error {
 	log.Printf("Persisting update Order %v", order)
 	tx, err := or.db.GetConnection().Begin(ctx)
+	if err != nil {
+		log.Printf("failed to open order tx '%d': %v", userID, err)
+		return errors.Errorf("failed to order open tx '%d': %v", userID, err)
+	}
 	defer tx.Rollback(ctx)
 	_, err = tx.Exec(ctx, "update orders set status = $1, accrual = $2 where order_id = $2", order.Status, order.Accrual, order.Number)
 	if err != nil {
@@ -80,36 +84,41 @@ func (or orderRepository) updateUserBalance(ctx context.Context, tx pgx.Tx, user
 	return nil
 }
 
-func (or orderRepository) IsOrderExist(ctx context.Context, orderID int) (bool, error) {
-	log.Printf("Checking %d Order existing", orderID)
-	row := or.db.GetConnection().QueryRow(ctx, "select order_id from orders where order_id = $1", orderID)
-	var count int
-	err := row.Scan(&count)
+func (or orderRepository) GetOrder(ctx context.Context, orderID int) (*model.Order, error) {
+	log.Printf("Checking '%d' Order existing", orderID)
+	order := &model.Order{}
+	row := or.db.GetConnection().QueryRow(ctx,
+		"select uo.user_id, o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders uo on uo.order_id = o.order_id and o.order_id = $1", orderID)
+	err := row.Scan(&order.UserID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return false, nil
+			log.Printf("'%d' Order doesn't exist", orderID)
+			return nil, nil
 		}
-		return false, err
+		return nil, err
 	}
-	return true, nil
+	log.Printf("'%d' Order exists", orderID)
+	return order, nil
 }
 
 func (or orderRepository) GetOrders(ctx context.Context, userID int) ([]*model.Order, error) {
 	log.Printf("Getting Orders for userID: %d", userID)
 	var orders []*model.Order
 	rows, err := or.db.GetConnection().Query(ctx,
-		"select o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders u on u.user_id = $1 and o.order_id = u.order_id", userID)
+		"select uo.user_id, o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders uo on uo.user_id = $1 and o.order_id = uo.order_id", userID)
 	if err != nil {
 		log.Printf("failed to get orders for '%d': %v", userID, err)
 		return nil, errors.Errorf("failed to get orders for '%d': %v", userID, err)
 	}
 	for rows.Next() {
 		order := &model.Order{}
-		err := rows.Scan(&order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
+		err := rows.Scan(&order.UserID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
 		if err != nil {
-			return nil, err
+			log.Printf("failed to read orders for '%d': %v", userID, err)
+			return nil, errors.Errorf("failed to read orders for '%d': %v", userID, err)
 		}
 		orders = append(orders, order)
 	}
+	log.Printf("Got %d Orders for userID: %d", len(orders), userID)
 	return orders, nil
 }

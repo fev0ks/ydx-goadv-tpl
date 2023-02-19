@@ -8,7 +8,7 @@ import (
 )
 
 type Withdraw struct {
-	WithdrawId  int `json:"-" db:"withdraw_id"`
+	WithdrawID  int `json:"-" db:"withdraw_id"`
 	Order       int
 	Sum         int
 	ProcessedAt time.Time `json:"processed_at"`
@@ -34,7 +34,7 @@ type WithdrawRequest struct {
 func (wd *WithdrawRequest) UnmarshalJSON(data []byte) error {
 	var withdrawRequestIn struct {
 		Order string
-		Sum   int
+		Sum   float32
 	}
 	if err := json.Unmarshal(data, &withdrawRequestIn); err != nil {
 		return err
@@ -44,6 +44,6 @@ func (wd *WithdrawRequest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	wd.Order = orderNumber
-	wd.Sum = withdrawRequestIn.Sum * 100
+	wd.Sum = int(withdrawRequestIn.Sum * 100)
 	return nil
 }

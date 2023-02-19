@@ -27,7 +27,6 @@ func HandleUserRequests(
 			r.Post("/login", userHandler.LoginHandler())
 		})
 	})
-
 }
 
 func HandleOrderRequests(router chi.Router,

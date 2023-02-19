@@ -26,7 +26,7 @@ func (s sessionService) CreateSession(userID int) (string, time.Time) {
 	sessionToken := uuid.NewString()
 	expiresAt := time.Now().Add(s.sessionLifetime)
 	s.sessionStorage.SaveSession(sessionToken, &model.Session{
-		UserId: userID,
+		UserID: userID,
 		Expiry: expiresAt,
 	})
 	return sessionToken, expiresAt

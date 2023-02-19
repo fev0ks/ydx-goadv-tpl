@@ -35,15 +35,19 @@ func (br *balanceRepository) GetBalance(ctx context.Context, userID int) (*model
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get balance of '%s': %v", userID, err)
+		return nil, fmt.Errorf("failed to get balance of '%d': %v", userID, err)
 	}
 	return balance, nil
 }
 
 func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, withdraw *model.Withdraw) error {
 	tx, err := br.db.GetConnection().Begin(ctx)
+	if err != nil {
+		log.Printf("failed to open balance tx '%d': %v", userID, err)
+		return errors.Errorf("failed to open balance tx '%d': %v", userID, err)
+	}
 	defer tx.Rollback(ctx)
-	exec, err := tx.Exec(ctx, "update user_balance set current = current - $1 where user_id = $2", withdraw.Sum, userID)
+	exec, err := tx.Exec(ctx, "update user_balance set current = current - $1, withdraw = withdraw + $2 where user_id = $3", withdraw.Sum, withdraw.Sum, userID)
 	if err != nil {
 		log.Printf("failed to withdraw for '%d': %v", userID, err)
 		return errors.Errorf("failed to withdraw for '%d': %v", userID, err)
@@ -54,16 +58,18 @@ func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, wi
 	withdrawRow := tx.QueryRow(ctx,
 		"insert into withdraws(order_id, sum, processed_at) values ($1, $2, $3) returning withdraw_id",
 		withdraw.Order, withdraw.Sum, withdraw.ProcessedAt)
-	var withdrawId int
-	err = withdrawRow.Scan(&withdrawId)
+	var WithdrawID int
+	err = withdrawRow.Scan(&WithdrawID)
 	if err != nil {
-		return err
+		log.Printf("failed to get withdrawID '%d': %v", userID, err)
+		return errors.Errorf("failed to get withdrawID '%d': %v", userID, err)
 	}
 	_, err = tx.Exec(ctx,
 		"insert into user_withdraws(user_id, withdraw_id) values ($1, $2)",
-		userID, withdrawId)
+		userID, WithdrawID)
 	if err != nil {
-		return err
+		log.Printf("failed to insert '%d' user - '%d' withdraw: %v", userID, WithdrawID, err)
+		return errors.Errorf("failed to insert '%d' user - '%d' withdraw: %v", userID, WithdrawID, err)
 	}
 	tx.Commit(ctx)
 	return nil
@@ -82,6 +88,7 @@ func (br *balanceRepository) GetWithdrawals(ctx context.Context, userID int) ([]
 		withdraw := &model.Withdraw{}
 		err := rows.Scan(&withdraw.Order, &withdraw.Sum, &withdraw.ProcessedAt)
 		if err != nil {
+			log.Printf("failed to get withdraws for '%d': %v", userID, err)
 			return nil, err
 		}
 		withdraws = append(withdraws, withdraw)

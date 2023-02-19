@@ -11,7 +11,7 @@ import (
 )
 
 type OrderProcessingService interface {
-	AddToProcessingQueue(userID, orderID int)
+	AddToAccrualProcessingQueue(userID, orderID int)
 }
 
 type orderProcessingService struct {
@@ -36,9 +36,9 @@ func NewOrderProcessingService(
 	return op
 }
 
-func (op *orderProcessingService) AddToProcessingQueue(userID, orderID int) {
+func (op *orderProcessingService) AddToAccrualProcessingQueue(userID, orderID int) {
 	userOrder := &model.UserOrder{
-		UserId: userID,
+		UserID: userID,
 		Order: &model.Order{
 			Number:     orderID,
 			UploadedAt: time.Now(),
@@ -50,7 +50,7 @@ func (op *orderProcessingService) AddToProcessingQueue(userID, orderID int) {
 }
 
 func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Second / 2)
 	for {
 		select {
 		case <-ctx.Done():
@@ -74,9 +74,9 @@ func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
 					continue
 				}
 				if userOrder.Order.Status == "" {
-					err = op.saveUpdate(ctx, userOrder.UserId, accrualOrder)
+					err = op.saveOrder(ctx, userOrder.UserID, accrualOrder)
 				} else if userOrder.Order.Status != accrualOrder.Status {
-					err = op.updateOrder(ctx, userOrder.UserId, accrualOrder)
+					err = op.updateOrder(ctx, userOrder.UserID, accrualOrder)
 				}
 				if err != nil {
 					log.Printf("failed to save order %v: %v", accrualOrder, err)
@@ -105,8 +105,10 @@ func (op *orderProcessingService) backToQueue(backToQueue []*model.UserOrder) {
 	op.queue = append(op.queue, backToQueue...)
 }
 
-func (op *orderProcessingService) saveUpdate(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
-	return op.orderRepo.InsertOrder(ctx, userID, accrualOrder.ToOrder())
+func (op *orderProcessingService) saveOrder(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
+	order := accrualOrder.ToOrder()
+	order.UploadedAt = time.Now()
+	return op.orderRepo.InsertOrder(ctx, userID, order)
 }
 
 func (op *orderProcessingService) updateOrder(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {

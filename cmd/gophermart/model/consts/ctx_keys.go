@@ -1,6 +1,6 @@
 package consts
 
-var UserIdCtxKey = &contextKey{"userID"}
+var UserIDCtxKey = &contextKey{"userID"}
 
 type contextKey struct {
 	name string

@@ -66,7 +66,7 @@ func (uh *userHandler) RegisterHandler() func(writer http.ResponseWriter, reques
 			Expires:  expiresAt,
 			HttpOnly: true,
 		})
-		log.Printf("'%s' was signed up", userRequest.Login)
+		log.Printf("'%s' was signed up as '%d'", userRequest.Login, user.UserID)
 	}
 }
 
@@ -103,6 +103,6 @@ func (uh *userHandler) LoginHandler() func(writer http.ResponseWriter, request *
 			Expires:  expiresAt,
 			HttpOnly: true,
 		})
-		log.Printf("'%s' was signed in", userRequest.Login)
+		log.Printf("'%s' was signed in as '%d'", userRequest.Login, user.UserID)
 	}
 }

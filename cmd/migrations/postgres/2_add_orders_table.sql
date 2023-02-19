@@ -1,6 +1,6 @@
 CREATE table if not exists "orders"
 (
-    "order_id"    int PRIMARY KEY NOT null,
+    "order_id"    bigint PRIMARY KEY NOT null,
     "status"      varchar         NOT NULL,
     "accrual"     int,
     "uploaded_at" timestamp
