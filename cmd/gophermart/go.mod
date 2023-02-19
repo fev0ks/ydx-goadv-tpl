@@ -27,6 +27,7 @@ require (
 	github.com/jackc/pgproto3/v2 v2.0.2 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgtype v1.4.0 // indirect
+	github.com/jackc/puddle v1.1.1 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

@@ -24,13 +24,16 @@ func NewBalancewRepository(db DBProvider) BalanceRepository {
 }
 
 func (br *balanceRepository) GetBalance(ctx context.Context, userID int) (*model.Balance, error) {
-	result := br.db.
-		GetConnection().
-		QueryRow(ctx,
-			"select current, withdraw from user_balance where user_id = $1",
-			userID)
+	conn, err := br.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	result := conn.QueryRow(ctx,
+		"select current, withdraw from user_balance where user_id = $1",
+		userID)
 	balance := &model.Balance{}
-	err := result.Scan(&balance.Current, &balance.Withdraw)
+	err = result.Scan(&balance.Current, &balance.Withdraw)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -41,7 +44,12 @@ func (br *balanceRepository) GetBalance(ctx context.Context, userID int) (*model
 }
 
 func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, withdraw *model.Withdraw) error {
-	tx, err := br.db.GetConnection().Begin(ctx)
+	conn, err := br.db.GetConnection(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		log.Printf("failed to open balance tx '%d': %v", userID, err)
 		return errors.Errorf("failed to open balance tx '%d': %v", userID, err)
@@ -78,12 +86,18 @@ func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, wi
 func (br *balanceRepository) GetWithdrawals(ctx context.Context, userID int) ([]*model.Withdraw, error) {
 	log.Printf("Getting withdraws for userID: %d", userID)
 	var withdraws []*model.Withdraw
-	rows, err := br.db.GetConnection().Query(ctx,
+	conn, err := br.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	rows, err := conn.Query(ctx,
 		"select w.order_id, w.sum, w.processed_at from withdraws w join user_withdraws u on u.withdraw_id = w.withdraw_id and u.user_id = $1", userID)
 	if err != nil {
 		log.Printf("failed to get withdraws for '%d': %v", userID, err)
 		return nil, errors.Errorf("failed to get withdraws for '%d': %v", userID, err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		withdraw := &model.Withdraw{}
 		err := rows.Scan(&withdraw.Order, &withdraw.Sum, &withdraw.ProcessedAt)

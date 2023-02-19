@@ -8,17 +8,19 @@ import (
 )
 
 const (
-	defaultAddress         = "localhost:8080"
-	defaultAccrualAddress  = "localhost:8081"
-	defaultDBConfig        = ""
-	defaultSessionLifetime = time.Minute * 30
+	defaultAddress          = "localhost:8080"
+	defaultAccrualAddress   = "localhost:8081"
+	defaultDBConfig         = ""
+	defaultSessionLifetime  = time.Minute * 30
+	defaultDBMaxConnections = 10
 )
 
 type AppConfig struct {
-	ServerAddress   string
-	AccrualAddress  string
-	DBConnection    string
-	SessionLifetime time.Duration
+	ServerAddress    string
+	AccrualAddress   string
+	DBConnection     string
+	SessionLifetime  time.Duration
+	DBMaxConnections int32
 }
 
 func InitAppConfig() *AppConfig {
@@ -47,10 +49,11 @@ func InitAppConfig() *AppConfig {
 	}
 
 	return &AppConfig{
-		ServerAddress:   address,
-		AccrualAddress:  accrualAddress,
-		DBConnection:    dbConfig,
-		SessionLifetime: getSessionLifetime(),
+		ServerAddress:    address,
+		AccrualAddress:   accrualAddress,
+		DBConnection:     dbConfig,
+		SessionLifetime:  getSessionLifetime(),
+		DBMaxConnections: defaultDBMaxConnections,
 	}
 }
 

@@ -25,7 +25,12 @@ func NewUserRepository(db DBProvider) UserRepository {
 func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
 	log.Printf("Creating user '%s'", user.Username)
 	var userID int
-	tx, err := ur.db.GetConnection().Begin(ctx)
+	conn, err := ur.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		log.Printf("failed to open user tx '%d': %v", userID, err)
 		return nil, errors.Errorf("failed to open user tx '%d': %v", userID, err)
@@ -47,9 +52,15 @@ func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*mo
 }
 
 func (ur *userRepository) GetUser(ctx context.Context, username string) (*model.User, error) {
-	result := ur.db.GetConnection().QueryRow(ctx, "select user_id, username, password from users where username=$1", username)
+	log.Printf("Getting user '%s'", username)
+	conn, err := ur.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	row := conn.QueryRow(ctx, "select user_id, username, password from users where username=$1", username)
 	user := &model.User{}
-	err := result.Scan(&user.UserID, &user.Username, &user.Password)
+	err = row.Scan(&user.UserID, &user.Username, &user.Password)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil

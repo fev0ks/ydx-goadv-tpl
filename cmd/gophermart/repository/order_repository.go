@@ -25,7 +25,12 @@ func NewOrderRepository(db DBProvider) OrderRepository {
 
 func (or orderRepository) InsertOrder(ctx context.Context, order *model.Order) error {
 	log.Printf("Persisting Order: %v", order)
-	tx, err := or.db.GetConnection().Begin(ctx)
+	conn, err := or.db.GetConnection(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		log.Printf("failed to open order tx '%d': %v", order.UserID, err)
 		return errors.Errorf("failed to order open tx '%d': %v", order.UserID, err)
@@ -54,7 +59,12 @@ func (or orderRepository) InsertOrder(ctx context.Context, order *model.Order) e
 
 func (or orderRepository) UpdateOrder(ctx context.Context, order *model.Order) error {
 	log.Printf("Persisting update Order %v", order)
-	tx, err := or.db.GetConnection().Begin(ctx)
+	conn, err := or.db.GetConnection(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		log.Printf("failed to open order tx '%d': %v", order.UserID, err)
 		return errors.Errorf("failed to order open tx '%d': %v", order.UserID, err)
@@ -87,9 +97,14 @@ func (or orderRepository) updateUserBalance(ctx context.Context, tx pgx.Tx, orde
 func (or orderRepository) GetOrder(ctx context.Context, orderID int) (*model.Order, error) {
 	log.Printf("Checking '%d' Order existing", orderID)
 	order := &model.Order{}
-	row := or.db.GetConnection().QueryRow(ctx,
+	conn, err := or.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	row := conn.QueryRow(ctx,
 		"select uo.user_id, o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders uo on uo.order_id = o.order_id and o.order_id = $1", orderID)
-	err := row.Scan(&order.UserID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
+	err = row.Scan(&order.UserID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			log.Printf("'%d' Order doesn't exist", orderID)
@@ -104,12 +119,18 @@ func (or orderRepository) GetOrder(ctx context.Context, orderID int) (*model.Ord
 func (or orderRepository) GetOrders(ctx context.Context, userID int) ([]*model.Order, error) {
 	log.Printf("Getting Orders for userID: %d", userID)
 	var orders []*model.Order
-	rows, err := or.db.GetConnection().Query(ctx,
+	conn, err := or.db.GetConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	rows, err := conn.Query(ctx,
 		"select uo.user_id, o.order_id, o.status, o.accrual, o.uploaded_at from orders o join user_orders uo on uo.user_id = $1 and o.order_id = uo.order_id", userID)
 	if err != nil {
 		log.Printf("failed to get orders for '%d': %v", userID, err)
 		return nil, errors.Errorf("failed to get orders for '%d': %v", userID, err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		order := &model.Order{}
 		err := rows.Scan(&order.UserID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt)
