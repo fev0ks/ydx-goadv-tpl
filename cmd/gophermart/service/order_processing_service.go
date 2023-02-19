@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// OrderProcessingService TODO looks very bad
 type OrderProcessingService interface {
 	AddToAccrualOrderProcessingQueue(order *model.Order)
 }
@@ -43,7 +44,7 @@ func (op *orderProcessingService) AddToAccrualOrderProcessingQueue(order *model.
 }
 
 func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
-	ticker := time.NewTicker(time.Second / 2)
+	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ctx.Done():

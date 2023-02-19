@@ -68,7 +68,7 @@ func (ac accrualClient) GetOrderStatus(ctx context.Context, orderID int) (*model
 		log.Printf("Order is not presented in accrual system '%d'", orderID)
 		accrualOrder = &model.AccrualOrder{
 			Order:   orderID,
-			Status:  model.InvalidStatus,
+			Status:  model.NewStatus,
 			Accrual: 0,
 		}
 	} else {

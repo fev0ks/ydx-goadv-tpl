@@ -55,13 +55,10 @@ func (br *balanceRepository) BalanceWithdraw(ctx context.Context, userID int, wi
 		return errors.Errorf("failed to open balance tx '%d': %v", userID, err)
 	}
 	defer tx.Rollback(ctx)
-	exec, err := tx.Exec(ctx, "update user_balance set current = current - $1, withdraw = withdraw + $2 where user_id = $3", withdraw.Sum, withdraw.Sum, userID)
+	_, err = tx.Exec(ctx, "update user_balance set current = current - $1, withdraw = withdraw + $2 where user_id = $3", withdraw.Sum, withdraw.Sum, userID)
 	if err != nil {
 		log.Printf("failed to withdraw for '%d': %v", userID, err)
 		return errors.Errorf("failed to withdraw for '%d': %v", userID, err)
-	}
-	if len(exec) == 0 {
-		return errors.New("Balance was not updated ?")
 	}
 	withdrawRow := tx.QueryRow(ctx,
 		"insert into withdraws(order_id, sum, processed_at) values ($1, $2, $3) returning withdraw_id",
