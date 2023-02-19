@@ -6,6 +6,7 @@ import (
 	"github.com/fev0ks/ydx-goadv-tpl/repository"
 	"github.com/theplant/luhn"
 	"log"
+	"time"
 )
 
 type OrderService interface {
@@ -24,9 +25,14 @@ func NewOrderService(orderRepo repository.OrderRepository, orderProcessingSrv Or
 	return &orderService{orderRepo, orderProcessingSrv}
 }
 
-func (os orderService) SetOrder(_ context.Context, userID int, orderID int) error {
+func (os orderService) SetOrder(ctx context.Context, userID int, orderID int) error {
 	log.Printf("Additing order '%d' to accrual processing queue order, user: '%d'", orderID, userID)
-	os.orderProcessingSrv.AddToAccrualProcessingQueue(userID, orderID)
+	order := &model.Order{UserID: userID, Number: orderID, Status: model.NewStatus, UploadedAt: time.Now()}
+	err := os.orderRepo.InsertOrder(ctx, order)
+	if err != nil {
+		return err
+	}
+	os.orderProcessingSrv.AddToAccrualOrderProcessingQueue(order)
 	return nil
 }
 

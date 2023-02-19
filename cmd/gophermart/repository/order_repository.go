@@ -9,8 +9,8 @@ import (
 )
 
 type OrderRepository interface {
-	InsertOrder(ctx context.Context, userID int, order *model.Order) error
-	UpdateOrder(ctx context.Context, userID int, order *model.Order) error
+	InsertOrder(ctx context.Context, order *model.Order) error
+	UpdateOrder(ctx context.Context, order *model.Order) error
 	GetOrder(ctx context.Context, orderID int) (*model.Order, error)
 	GetOrders(ctx context.Context, userID int) ([]*model.Order, error)
 }
@@ -23,12 +23,12 @@ func NewOrderRepository(db DBProvider) OrderRepository {
 	return &orderRepository{db}
 }
 
-func (or orderRepository) InsertOrder(ctx context.Context, userID int, order *model.Order) error {
+func (or orderRepository) InsertOrder(ctx context.Context, order *model.Order) error {
 	log.Printf("Persisting Order: %v", order)
 	tx, err := or.db.GetConnection().Begin(ctx)
 	if err != nil {
-		log.Printf("failed to open order tx '%d': %v", userID, err)
-		return errors.Errorf("failed to order open tx '%d': %v", userID, err)
+		log.Printf("failed to open order tx '%d': %v", order.UserID, err)
+		return errors.Errorf("failed to order open tx '%d': %v", order.UserID, err)
 	}
 	defer tx.Rollback(ctx)
 	_, err = tx.Exec(ctx,
@@ -39,12 +39,12 @@ func (or orderRepository) InsertOrder(ctx context.Context, userID int, order *mo
 		log.Printf("failed to create order: %v", err)
 		return errors.Errorf("failed to insert order '%v': %v", order, err)
 	}
-	_, err = tx.Exec(ctx, "insert into user_orders(user_id, order_id) values($1, $2)", userID, order.Number)
+	_, err = tx.Exec(ctx, "insert into user_orders(user_id, order_id) values($1, $2)", order.UserID, order.Number)
 	if err != nil {
-		log.Printf("failed to insert user %d - order %d relation: %v", userID, order.Number, err)
-		return errors.Errorf("failed to insert user %d - order %d relation: %v", userID, order.Number, err)
+		log.Printf("failed to insert user '%d' - order '%d' relation: %v", order.UserID, order.Number, err)
+		return errors.Errorf("failed to insert user '%d' - order '%d' relation: %v", order.UserID, order.Number, err)
 	}
-	err = or.updateUserBalance(ctx, tx, userID, order)
+	err = or.updateUserBalance(ctx, tx, order)
 	if err != nil {
 		return err
 	}
@@ -52,20 +52,20 @@ func (or orderRepository) InsertOrder(ctx context.Context, userID int, order *mo
 	return nil
 }
 
-func (or orderRepository) UpdateOrder(ctx context.Context, userID int, order *model.Order) error {
+func (or orderRepository) UpdateOrder(ctx context.Context, order *model.Order) error {
 	log.Printf("Persisting update Order %v", order)
 	tx, err := or.db.GetConnection().Begin(ctx)
 	if err != nil {
-		log.Printf("failed to open order tx '%d': %v", userID, err)
-		return errors.Errorf("failed to order open tx '%d': %v", userID, err)
+		log.Printf("failed to open order tx '%d': %v", order.UserID, err)
+		return errors.Errorf("failed to order open tx '%d': %v", order.UserID, err)
 	}
 	defer tx.Rollback(ctx)
-	_, err = tx.Exec(ctx, "update orders set status = $1, accrual = $2 where order_id = $2", order.Status, order.Accrual, order.Number)
+	_, err = tx.Exec(ctx, "update orders set status = $1, accrual = $2 where order_id = $3", order.Status, order.Accrual, order.Number)
 	if err != nil {
 		log.Printf("failed to update order %v: %v", order, err)
 		return errors.Errorf("failed to update order %v: %v", order, err)
 	}
-	err = or.updateUserBalance(ctx, tx, userID, order)
+	err = or.updateUserBalance(ctx, tx, order)
 	if err != nil {
 		return err
 	}
@@ -73,12 +73,12 @@ func (or orderRepository) UpdateOrder(ctx context.Context, userID int, order *mo
 	return nil
 }
 
-func (or orderRepository) updateUserBalance(ctx context.Context, tx pgx.Tx, userID int, order *model.Order) error {
-	if order.Accrual != 0 {
-		_, err := tx.Exec(ctx, "update user_balance set current = current + $1 where user_id = $2", order.Accrual, userID)
+func (or orderRepository) updateUserBalance(ctx context.Context, tx pgx.Tx, order *model.Order) error {
+	if order.Accrual != 0 && order.Status == model.ProcessedStatus {
+		_, err := tx.Exec(ctx, "update user_balance set current = current + $1 where user_id = $2", order.Accrual, order.UserID)
 		if err != nil {
-			log.Printf("failed to update user balance %d: %v", userID, err)
-			return errors.Errorf("failed to update user balance %d: %v", userID, err)
+			log.Printf("failed to update user balance %d: %v", order.UserID, err)
+			return errors.Errorf("failed to update user balance %d: %v", order.UserID, err)
 		}
 	}
 	return nil

@@ -25,7 +25,7 @@ type Order struct {
 }
 
 func (o *Order) String() string {
-	return fmt.Sprintf("#%d - status: '%s', accrual:'%d', uploadedAt:%s",
+	return fmt.Sprintf("{#%d - status: '%s', accrual: '%d', uploadedAt: '%s'}",
 		o.Number, o.Status, o.Accrual, o.UploadedAt.Format(time.RFC3339))
 }
 
@@ -49,6 +49,11 @@ type AccrualOrder struct {
 	Accrual int
 }
 
+func (ao *AccrualOrder) String() string {
+	return fmt.Sprintf("{#%d - status: '%s', accrual: '%d'}",
+		ao.Order, ao.Status, ao.Accrual)
+}
+
 func (ao *AccrualOrder) UnmarshalJSON(data []byte) error {
 	var accrualOrderIn struct {
 		Order   string
@@ -70,16 +75,4 @@ func (ao *AccrualOrder) UnmarshalJSON(data []byte) error {
 		ao.Accrual = 0
 	}
 	return nil
-}
-func (ao *AccrualOrder) ToOrder() *Order {
-	return &Order{
-		Number:  ao.Order,
-		Status:  ao.Status,
-		Accrual: ao.Accrual,
-	}
-}
-
-type UserOrder struct {
-	UserID int
-	Order  *Order
 }

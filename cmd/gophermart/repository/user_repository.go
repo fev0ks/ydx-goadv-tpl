@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/fev0ks/ydx-goadv-tpl/model"
 	"github.com/jackc/pgx/v4"
+	"github.com/pkg/errors"
+	"log"
 )
 
 type UserRepository interface {
@@ -21,12 +23,14 @@ func NewUserRepository(db DBProvider) UserRepository {
 }
 
 func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
+	log.Printf("Creating user '%s'", user.Username)
 	var userID int
 	tx, err := ur.db.GetConnection().Begin(ctx)
-	defer tx.Rollback(ctx)
 	if err != nil {
-		return nil, err
+		log.Printf("failed to open user tx '%d': %v", userID, err)
+		return nil, errors.Errorf("failed to open user tx '%d': %v", userID, err)
 	}
+	defer tx.Rollback(ctx)
 	row := tx.QueryRow(ctx, "insert into users(username, password) values($1, $2) RETURNING user_id", user.Username, user.Password)
 	err = row.Scan(&userID)
 	if err != nil {
@@ -38,6 +42,7 @@ func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*mo
 		return nil, err
 	}
 	tx.Commit(ctx)
+	log.Printf("Created user '%s' with id: %d", user.Username, user.UserID)
 	return user, nil
 }
 

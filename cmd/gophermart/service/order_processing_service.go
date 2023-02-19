@@ -11,12 +11,12 @@ import (
 )
 
 type OrderProcessingService interface {
-	AddToAccrualProcessingQueue(userID, orderID int)
+	AddToAccrualOrderProcessingQueue(order *model.Order)
 }
 
 type orderProcessingService struct {
 	*sync.RWMutex
-	queue         []*model.UserOrder
+	queue         []*model.Order
 	accrualClient clients.AccrualClient
 	orderRepo     repository.OrderRepository
 }
@@ -28,7 +28,7 @@ func NewOrderProcessingService(
 ) OrderProcessingService {
 	op := &orderProcessingService{
 		&sync.RWMutex{},
-		make([]*model.UserOrder, 0),
+		make([]*model.Order, 0),
 		accrualClient,
 		orderRepo,
 	}
@@ -36,16 +36,9 @@ func NewOrderProcessingService(
 	return op
 }
 
-func (op *orderProcessingService) AddToAccrualProcessingQueue(userID, orderID int) {
-	userOrder := &model.UserOrder{
-		UserID: userID,
-		Order: &model.Order{
-			Number:     orderID,
-			UploadedAt: time.Now(),
-		},
-	}
+func (op *orderProcessingService) AddToAccrualOrderProcessingQueue(order *model.Order) {
 	op.Lock()
-	op.queue = append(op.queue, userOrder)
+	op.queue = append(op.queue, order)
 	op.Unlock()
 }
 
@@ -57,9 +50,9 @@ func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
 			log.Println("Order Queue processing is canceled")
 			return
 		case <-ticker.C:
-			toRetry := make([]*model.UserOrder, 0)
-			for _, userOrder := range op.retrieveQueueData() {
-				accrualOrder, err := op.accrualClient.GetOrderStatus(ctx, userOrder.Order.Number)
+			toRetry := make([]*model.Order, 0)
+			for _, order := range op.retrieveQueueData() {
+				accrualOrder, err := op.accrualClient.GetOrderStatus(ctx, order.Number)
 				if err != nil {
 					retryError, ok := err.(*model.RetryError)
 					if !ok {
@@ -67,23 +60,21 @@ func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
 						continue
 					}
 					log.Printf("Accrual warning StatusTooManyRequests: %v", err)
-					toRetry = append(toRetry, userOrder)
+					toRetry = append(toRetry, order)
 					waitingDuration := time.Second * time.Duration(retryError.RetryAfter)
 					log.Printf("Waiting for: %v", waitingDuration)
 					time.Sleep(waitingDuration)
 					continue
 				}
-				if userOrder.Order.Status == "" {
-					err = op.saveOrder(ctx, userOrder.UserID, accrualOrder)
-				} else if userOrder.Order.Status != accrualOrder.Status {
-					err = op.updateOrder(ctx, userOrder.UserID, accrualOrder)
+				if order.Status != accrualOrder.Status {
+					err = op.updateOrderState(ctx, order, accrualOrder)
 				}
 				if err != nil {
 					log.Printf("failed to save order %v: %v", accrualOrder, err)
 					continue
 				}
 				if accrualOrder.Status != model.InvalidStatus && accrualOrder.Status != model.ProcessedStatus {
-					toRetry = append(toRetry, userOrder)
+					toRetry = append(toRetry, order)
 				}
 			}
 			op.backToQueue(toRetry)
@@ -91,7 +82,7 @@ func (op *orderProcessingService) orderQueueProcessing(ctx context.Context) {
 	}
 }
 
-func (op *orderProcessingService) retrieveQueueData() []*model.UserOrder {
+func (op *orderProcessingService) retrieveQueueData() []*model.Order {
 	op.Lock()
 	defer op.Unlock()
 	data := op.queue
@@ -99,18 +90,18 @@ func (op *orderProcessingService) retrieveQueueData() []*model.UserOrder {
 	return data
 }
 
-func (op *orderProcessingService) backToQueue(backToQueue []*model.UserOrder) {
+func (op *orderProcessingService) backToQueue(backToQueue []*model.Order) {
 	op.Lock()
 	defer op.Unlock()
 	op.queue = append(op.queue, backToQueue...)
 }
 
-func (op *orderProcessingService) saveOrder(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
-	order := accrualOrder.ToOrder()
-	order.UploadedAt = time.Now()
-	return op.orderRepo.InsertOrder(ctx, userID, order)
-}
-
-func (op *orderProcessingService) updateOrder(ctx context.Context, userID int, accrualOrder *model.AccrualOrder) error {
-	return op.orderRepo.UpdateOrder(ctx, userID, accrualOrder.ToOrder())
+func (op *orderProcessingService) updateOrderState(
+	ctx context.Context,
+	order *model.Order,
+	accrualOrder *model.AccrualOrder,
+) error {
+	order.Status = accrualOrder.Status
+	order.Accrual = accrualOrder.Accrual
+	return op.orderRepo.UpdateOrder(ctx, order)
 }
