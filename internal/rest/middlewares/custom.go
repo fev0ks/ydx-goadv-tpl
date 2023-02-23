@@ -3,7 +3,7 @@ package middlewares
 import (
 	"compress/zlib"
 	"fmt"
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model/consts/rest"
 	"io"
 	"log"
 	"net/http"

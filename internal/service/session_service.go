@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/fev0ks/ydx-goadv-tpl/model"
-	"github.com/fev0ks/ydx-goadv-tpl/storage"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/storage"
 	"github.com/google/uuid"
 	"time"
 )

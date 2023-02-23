@@ -1,8 +1,8 @@
 package rest
 
 import (
-	"github.com/fev0ks/ydx-goadv-tpl/rest/handlers"
-	"github.com/fev0ks/ydx-goadv-tpl/rest/middlewares"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/rest/handlers"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/rest/middlewares"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

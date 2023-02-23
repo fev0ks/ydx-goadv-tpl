@@ -2,7 +2,7 @@ package rest
 
 import (
 	"context"
-	"github.com/fev0ks/ydx-goadv-tpl/repository"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/repository"
 	"log"
 	"net/http"
 )

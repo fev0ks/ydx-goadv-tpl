@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fev0ks/ydx-goadv-tpl/model"
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model/consts/rest"
+	"github.com/go-resty/resty/v2"
 	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/go-resty/resty/v2"
 )
 
 const (

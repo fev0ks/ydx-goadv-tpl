@@ -3,9 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts"
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts/rest"
-	"github.com/fev0ks/ydx-goadv-tpl/service"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model/consts"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model/consts/rest"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/service"
 	"io"
 	"log"
 	"net/http"

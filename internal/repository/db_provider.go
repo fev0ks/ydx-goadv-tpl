@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fev0ks/ydx-goadv-tpl/config"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/config"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/jackc/tern/migrate"
 	"log"
 )
 
 const (
-	migrationsDir = "./cmd/migrations/postgres/"
+	migrationsDir = "./migrations/postgres/"
 )
 
 type DBProvider interface {

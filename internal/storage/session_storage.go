@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/fev0ks/ydx-goadv-tpl/model"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model"
 )
 
 // SessionStorage TODO use redis

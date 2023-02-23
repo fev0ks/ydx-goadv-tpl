@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"github.com/fev0ks/ydx-goadv-tpl/model"
-	"github.com/fev0ks/ydx-goadv-tpl/repository"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/repository"
 	"github.com/theplant/luhn"
 	"log"
 	"time"

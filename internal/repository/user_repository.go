@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/fev0ks/ydx-goadv-tpl/model"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model"
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 	"log"

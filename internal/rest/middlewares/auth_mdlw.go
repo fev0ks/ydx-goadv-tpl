@@ -2,8 +2,8 @@ package middlewares
 
 import (
 	"context"
-	"github.com/fev0ks/ydx-goadv-tpl/model/consts"
-	"github.com/fev0ks/ydx-goadv-tpl/service"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/model/consts"
+	"github.com/fev0ks/ydx-goadv-tpl/internal/service"
 	"net/http"
 )
 
